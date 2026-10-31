@@ -54,7 +54,7 @@ app.Use(async (context, next) =>
 {
     var path = context.Request.Path;
     if (!path.StartsWithSegments("/api") || HttpMethods.IsOptions(context.Request.Method) ||
-        path.Equals("/api/config", StringComparison.OrdinalIgnoreCase))
+        MatchesPath(path, "/api/config"))
     {
         await next();
         return;
@@ -108,12 +108,15 @@ app.Run(ForwardAsync);
 app.Run();
 
 static bool IsFileMutation(PathString path) =>
-    path.Equals("/api/files/delete", StringComparison.OrdinalIgnoreCase) ||
-    path.Equals("/api/files/move", StringComparison.OrdinalIgnoreCase);
+    MatchesPath(path, "/api/files/delete") ||
+    MatchesPath(path, "/api/files/move");
 
 static bool IsFileCreation(PathString path) =>
-    path.Equals("/api/files/upload", StringComparison.OrdinalIgnoreCase) ||
-    path.Equals("/api/files/copy", StringComparison.OrdinalIgnoreCase);
+    MatchesPath(path, "/api/files/upload") ||
+    MatchesPath(path, "/api/files/copy");
+
+static bool MatchesPath(PathString path, string expectedPath) =>
+    string.Equals(path.Value?.TrimEnd('/'), expectedPath, StringComparison.OrdinalIgnoreCase);
 
 static async Task RejectAsync(HttpContext context, int retryAfterSeconds, string detail)
 {
