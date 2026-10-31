@@ -9,12 +9,13 @@ const int apiRetryAfterSeconds = 30;
 const int uploadRetryAfterSeconds = 300;
 const int mutationRetryAfterSeconds = 60;
 const int maxConcurrentApiRequests = 4;
-const long maxDemoRequestBodyBytes = 11L * 1024 * 1024;
-const long defaultDemoUploadBytes = 10L * 1024 * 1024;
+const long defaultDemoUploadBytes = 100L * 1024 * 1024;
+const long multipartOverheadBytes = 1024L * 1024;
 const long bytesPerMiB = 1024L * 1024;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = maxDemoRequestBodyBytes);
+var configuredUploadBytes = builder.Configuration.GetValue("FileBrowser:MaxUploadBytes", defaultDemoUploadBytes);
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = configuredUploadBytes + multipartOverheadBytes);
 builder.Services.AddCors();
 builder.Services.AddSingleton(new HttpClient(new SocketsHttpHandler
 {
@@ -58,7 +59,7 @@ var turnstileSiteKey = builder.Configuration["Turnstile:SiteKey"]?.Trim() ?? str
 var turnstileSecretKey = builder.Configuration["Turnstile:SecretKey"] ?? string.Empty;
 var turnstileReady = !string.IsNullOrWhiteSpace(turnstileSiteKey) && !string.IsNullOrWhiteSpace(turnstileSecretKey);
 var turnstileVerifier = new TurnstileVerifier(turnstileSecretKey);
-var uploadLimitMiB = (int)(builder.Configuration.GetValue("FileBrowser:MaxUploadBytes", defaultDemoUploadBytes) / bytesPerMiB);
+var uploadLimitMiB = (int)(configuredUploadBytes / bytesPerMiB);
 
 var app = builder.Build();
 app.UseCors(policy => policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod());

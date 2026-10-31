@@ -11,7 +11,7 @@ This folder holds the backend deployment files, separate from the application so
 
 The public-repository Blueprint flow does not connect Render to your GitHub account, so it does not auto-deploy on future pushes. To publish later changes, sync the Blueprint or trigger a manual deploy from Render.
 
-The Blueprint sets the file root to `/app/demo-files`, caps uploads at 10 MiB, allows one upload at a time, and reduces the snapshot cache budget. It allows the GitHub Pages origin `https://jcd1991.github.io` for cross-origin browser requests.
+The Blueprint sets the file root to `/app/demo-files`, caps uploads at 100 MiB, allows one upload at a time, and reduces the snapshot cache budget. It allows the GitHub Pages origin `https://jcd1991.github.io` for cross-origin browser requests.
 
 ## Demo-only request limits
 
@@ -23,8 +23,8 @@ The `RateLimitProxy` sits in front of the .NET app only in this Render container
 | Simultaneous API requests | 4 |
 | Uploads and copies | 2 every 5 minutes |
 | Delete and move | 20 per minute |
-| Uploaded file | 10 MiB |
-| Upload request body | 11 MiB total, including multipart overhead |
+| Uploaded file | 100 MiB |
+| Upload request body | 101 MiB total, including multipart overhead |
 
 These limits are shared by all visitors. Health checks, CORS preflight requests, and static assets do not use the API quota. Rejected API calls return `429 Too Many Requests` with `Retry-After`; requests are not queued. The counters are in memory and reset when the free service restarts. This caps application work and upload frequency for a demo, but it is not authentication or a guarantee of uninterrupted access; any visitor can consume the shared allowance. Render separately provides network-level DDoS protection; its docs recommend application-level limits for API abuse ([Render DDoS guidance](https://render.com/articles/how-render-handles-ddos-attacks)).
 
