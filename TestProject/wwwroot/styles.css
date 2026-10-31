@@ -31,6 +31,9 @@ input { border: 1px solid #b7c2ce; border-radius: .4rem; padding: .55rem .7rem; 
 .drag-hint { margin: 0 0 .65rem; padding: .55rem .7rem; border: 1px solid #c8d9f4; border-radius: .4rem; background: #f0f6ff; color: #344b68; font-size: .85rem; }
 .summary { min-height: 1.5rem; margin: .5rem 0; font-size: .88rem; color: #465364; }
 .status { min-height: 1.4rem; margin: .3rem 0; color: #566474; font-size: .88rem; }
+.status-row { display: flex; align-items: center; flex-wrap: wrap; gap: .4rem .65rem; }
+.status-row .status { flex: 0 1 auto; }
+.status-row #undo-move { padding: .25rem .55rem; font-size: .82rem; }
 .status.error { color: #b42318; }
 .table-scroll { max-height: 48vh; overflow: auto; border: 1px solid #d8dee6; border-radius: .45rem; }
 table { width: 100%; border-collapse: collapse; text-align: left; }

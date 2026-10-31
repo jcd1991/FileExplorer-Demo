@@ -86,7 +86,10 @@ test('move picker cancels with Escape and dragging moves a file into a folder', 
   await expect(source.getByRole('button', { name: 'Move drag-me.txt', exact: true })).toBeFocused();
   await source.locator('.file-name').dragTo(page.locator('tr[data-path="Alpha"] .entry-name'));
   await expect(page.locator('#status')).toContainText('Moved drag-me.txt to Alpha/drag-me.txt.');
-  await expect(source).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo move' }).click();
+  await expect(page.locator('#status')).toContainText('Move undone. Returned Alpha/drag-me.txt to drag-me.txt.');
+  await expect(page.getByRole('button', { name: 'Undo move' })).toBeHidden();
+  await expect(page.locator('tr[data-path="drag-me.txt"]')).toBeVisible();
 });
 
 test('paging reuses a stable snapshot and Refresh sees changes', async ({ page, request }) => {

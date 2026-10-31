@@ -10,6 +10,7 @@ const searchInput = document.querySelector("#search-input");
 const breadcrumbs = document.querySelector("#breadcrumbs");
 const summary = document.querySelector("#summary");
 const status = document.querySelector("#status");
+const undoButton = document.querySelector("#undo-move");
 const entries = document.querySelector("#entries");
 const pageLabel = document.querySelector("#page-label");
 const previousPage = document.querySelector("#previous-page");
@@ -28,6 +29,7 @@ let moveSource;
 let moveDestination = "";
 let moveVersion = 0;
 let draggedPath;
+let undoMove;
 let state = readState();
 let activeRequest;
 let requestVersion = 0;
@@ -137,6 +139,11 @@ moveCrumbs.addEventListener("click", event => { const button = event.target.clos
 document.querySelector("#move-previous").addEventListener("click", () => loadMoveFolders(moveDestination, movePage - 1));
 document.querySelector("#move-next").addEventListener("click", () => loadMoveFolders(moveDestination, movePage + 1));
 document.querySelector("#move-submit").addEventListener("click", () => { const source = moveSource; const destination = joinPath(moveDestination, source.split("/").pop()); closeMovePicker(); executeMove(source, destination); });
+undoButton.addEventListener("click", () => {
+  if (!undoMove || mutationBusy) return;
+  const previousMove = undoMove;
+  executeMove(previousMove.destination, previousMove.source, true);
+});
 let movePage = 1; let movePages = 1;
 document.querySelector("thead").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-sort]");
@@ -269,6 +276,7 @@ function setReady(ready) {
     ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) {
     control.disabled = mutationBusy;
   }
+  undoButton.disabled = mutationBusy;
 }
 
 function syncApiMode() {
@@ -325,7 +333,7 @@ function joinPath(folder, name) { return folder ? `${folder}/${name}` : name; }
 function validDrop(source, folder) { return Boolean(source) && folder !== source && !folder.startsWith(`${source}/`) && joinPath(folder, source.split("/").pop()) !== source; }
 function clearDrag() { draggedPath = undefined; entries.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); breadcrumbs.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); }
 
-async function executeMove(source, destination) {
+async function executeMove(source, destination, isUndo = false) {
   if (mutationBusy || !validDrop(source, parentPath(destination))) return;
   mutationBusy = true; setReady(false); setStatus("Moving…");
   let succeeded = false;
@@ -333,8 +341,15 @@ async function executeMove(source, destination) {
   const failed = status.classList.contains("error");
   mutationBusy = false; snapshot = undefined;
   if (succeeded && !failed) {
+    if (isUndo) {
+      undoMove = undefined;
+      undoButton.hidden = true;
+    } else {
+      undoMove = { source, destination };
+      undoButton.hidden = false;
+    }
     await loadEntries();
-    setStatus(`Moved ${source} to ${destination}.`);
+    setStatus(isUndo ? `Move undone. Returned ${source} to ${destination}.` : `Moved ${source} to ${destination}.`);
   }
   else if (!failed) { await loadEntries(); setStatus("Move outcome is uncertain. Check the listing before retrying.", true); }
   setReady(viewReady);
