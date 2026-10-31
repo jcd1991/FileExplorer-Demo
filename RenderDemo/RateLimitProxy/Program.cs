@@ -1,10 +1,10 @@
+using FileExplorerDemo;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
-const string backendOrigin = "http://127.0.0.1:10001/";
 const int apiRetryAfterSeconds = 30;
 const int uploadRetryAfterSeconds = 300;
 const int mutationRetryAfterSeconds = 60;
@@ -24,8 +24,11 @@ builder.Services.AddSingleton(new HttpClient(new SocketsHttpHandler
     MaxConnectionsPerServer = 8
 })
 {
+    // DemoForwarder applies one deadline to request sending, headers, and body streaming.
     Timeout = Timeout.InfiniteTimeSpan
 });
+builder.Services.AddSingleton(provider => new DemoForwarder(
+    provider.GetRequiredService<HttpClient>(), new Uri("http://127.0.0.1:10001/"), TimeSpan.FromSeconds(60)));
 builder.Services.AddSingleton(new DemoRateLimiters(
     new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions
     {
@@ -151,7 +154,7 @@ app.Use(async (context, next) =>
     }
 });
 
-app.Run(ForwardAsync);
+app.Run(context => context.RequestServices.GetRequiredService<DemoForwarder>().ForwardAsync(context));
 app.Run();
 
 static bool IsFileMutation(PathString path) =>
@@ -185,71 +188,6 @@ static async Task RejectAsync(HttpContext context, int retryAfterSeconds, string
         detail
     }, context.RequestAborted);
 }
-
-static async Task ForwardAsync(HttpContext context)
-{
-    var client = context.RequestServices.GetRequiredService<HttpClient>();
-    var targetUri = new Uri(new Uri(backendOrigin), $"{context.Request.Path}{context.Request.QueryString}");
-    using var request = new HttpRequestMessage(new HttpMethod(context.Request.Method), targetUri);
-
-    // HTTP/2 bodies may have a content type without Content-Length or Transfer-Encoding.
-    var hasRequestBody = context.Request.ContentLength is > 0 ||
-        context.Request.Headers.ContainsKey("Transfer-Encoding") ||
-        context.Request.ContentType is not null;
-    if (hasRequestBody)
-    {
-        request.Content = new StreamContent(context.Request.Body);
-    }
-
-    foreach (var header in context.Request.Headers)
-    {
-        if (IsHopByHopHeader(header.Key) || header.Key.Equals("Host", StringComparison.OrdinalIgnoreCase))
-            continue;
-
-        if (!request.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray()))
-            request.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-    }
-
-    try
-    {
-        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
-        context.Response.StatusCode = (int)response.StatusCode;
-
-        foreach (var header in response.Headers)
-            if (!IsHopByHopHeader(header.Key) && !IsCorsHeader(header.Key)) context.Response.Headers[header.Key] = header.Value.ToArray();
-
-        foreach (var header in response.Content.Headers)
-            if (!IsHopByHopHeader(header.Key) && !IsCorsHeader(header.Key)) context.Response.Headers[header.Key] = header.Value.ToArray();
-
-        context.Response.Headers.Remove("transfer-encoding");
-        await response.Content.CopyToAsync(context.Response.Body, context.RequestAborted);
-    }
-    catch (HttpRequestException) when (!context.RequestAborted.IsCancellationRequested)
-    {
-        if (!context.Response.HasStarted)
-        {
-            context.Response.StatusCode = StatusCodes.Status502BadGateway;
-            await context.Response.WriteAsJsonAsync(new
-            {
-                title = "Demo backend unavailable",
-                status = StatusCodes.Status502BadGateway,
-                detail = "The demo backend is starting or temporarily unavailable. Try again shortly."
-            }, context.RequestAborted);
-        }
-    }
-}
-
-static bool IsHopByHopHeader(string name) =>
-    name.Equals("Connection", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("Keep-Alive", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("Proxy-Authenticate", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("Proxy-Authorization", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("TE", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("Trailer", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase) ||
-    name.Equals("Upgrade", StringComparison.OrdinalIgnoreCase);
-
-static bool IsCorsHeader(string name) => name.StartsWith("Access-Control-", StringComparison.OrdinalIgnoreCase);
 
 sealed class TurnstileVerifier(string secretKey)
 {
@@ -319,3 +257,5 @@ sealed class DemoRateLimiters(
         Mutation.Dispose();
     }
 }
+
+public partial class Program;

@@ -16,7 +16,7 @@ RUN dotnet publish TestProject.csproj -c Release --no-restore -o /out/app /p:Use
 WORKDIR /src/RenderDemo/RateLimitProxy
 COPY RenderDemo/RateLimitProxy/RateLimitProxy.csproj ./
 RUN dotnet restore RateLimitProxy.csproj
-COPY RenderDemo/RateLimitProxy/Program.cs ./
+COPY RenderDemo/RateLimitProxy/*.cs ./
 RUN dotnet publish RateLimitProxy.csproj -c Release --no-restore -o /out/proxy /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-bookworm-slim AS runtime

@@ -48,3 +48,17 @@ Render Free provides 512 MB RAM and 0.1 CPU. It sleeps after 15 minutes without 
 The API has no authentication and allows upload, delete, move, and copy. Anyone who reaches the Render URL can change these demo files, subject to the demo rate limits above. The container has no production credentials, database URL, or production data root, so changes stay inside this disposable service. Do not add personal or production data to `DemoFiles/`.
 
 Render can suspend free services when included usage is exhausted. If the account has a payment method, some overages can incur charges; set a spend limit and review usage ([Render billing FAQ](https://render.com/docs/faq)).
+
+## Request deadlines and regression checks
+
+The demo proxy allows 60 seconds for each upstream exchange, including sending the request, waiting for headers, and streaming the response. The deadline is linked to the browser disconnect token. Timeout before the response starts returns JSON with status `504 Gateway Timeout`; after bytes have started, the proxy aborts the response to signal an incomplete transfer. The API concurrency permit is released in either case. Turnstile verification has its own six-second limit before forwarding.
+
+A timed-out file change may already have completed. Refresh the listing before retrying; the proxy does not automatically retry mutations.
+
+Run the demo tests from the repository root:
+
+```sh
+dotnet test RenderDemo/RateLimitProxy.Tests/RateLimitProxy.Tests.csproj --configuration Release
+```
+
+The tests run the proxy middleware against a real local HTTP backend. They check exact JSON and multipart request bytes, a single content-type header, known and unknown body lengths, stalled headers, stalled response bodies, and recovery of the four API concurrency slots. Test fixtures are local and require no Turnstile credentials. GitHub Pages publication waits for both the application tests and these proxy tests to pass. Render deployment remains a separate manual step.
