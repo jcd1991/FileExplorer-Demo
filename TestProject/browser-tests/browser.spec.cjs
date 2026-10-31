@@ -58,17 +58,33 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
   await row.getByRole('button', { name: 'Copy browser.txt', exact: true }).click();
   row = page.locator('tr[data-path="Alpha/copied.txt"]');
   await expect(row).toBeVisible();
-  page.once('dialog', dialog => dialog.accept('Alpha/moved.txt'));
   await row.getByRole('button', { name: 'Move copied.txt', exact: true }).click();
-  row = page.locator('tr[data-path="Alpha/moved.txt"]');
+  await page.locator('#move-breadcrumbs').getByRole('button', { name: 'Root', exact: true }).click();
+  await page.locator('#move-submit').click();
+  await page.locator('#breadcrumbs').getByRole('button', { name: 'Root', exact: true }).click();
+  row = page.locator('tr[data-path="copied.txt"]');
   await expect(row).toBeVisible();
   page.once('dialog', dialog => dialog.dismiss());
-  await row.getByRole('button', { name: 'Delete moved.txt', exact: true }).click();
+  await row.getByRole('button', { name: 'Delete copied.txt', exact: true }).click();
   await expect(row).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
-  await row.getByRole('button', { name: 'Delete moved.txt', exact: true }).click();
+  await row.getByRole('button', { name: 'Delete copied.txt', exact: true }).click();
   await expect(row).toHaveCount(0);
+  await page.getByRole('button', { name: '📁 Alpha', exact: true }).click();
   await expect(page.locator('tr[data-path="Alpha/browser.txt"]')).toBeVisible();
+});
+
+test('drag and drop moves entries and Undo restores the previous path', async ({ page }) => {
+  await page.goto('/?open=1');
+  await expect(page.locator('.drag-hint')).toContainText('Drag a file or folder');
+  await page.locator('#upload-file').setInputFiles({ name: 'drag-me.txt', mimeType: 'text/plain', buffer: Buffer.from('drag bytes') });
+  await page.getByRole('button', { name: 'Upload', exact: true }).click();
+  const source = page.locator('tr[data-path="drag-me.txt"]');
+  await source.locator('.file-name').dragTo(page.locator('tr[data-path="Alpha"] .entry-name'));
+  await expect(page.locator('#status')).toContainText('Moved drag-me.txt to Alpha/drag-me.txt.');
+  await page.getByRole('button', { name: 'Undo move' }).click();
+  await expect(page.locator('#status')).toContainText('Move undone. Returned Alpha/drag-me.txt to drag-me.txt.');
+  await expect(page.locator('tr[data-path="drag-me.txt"]')).toBeVisible();
 });
 
 test('paging reuses a stable snapshot and Refresh sees changes', async ({ page, request }) => {

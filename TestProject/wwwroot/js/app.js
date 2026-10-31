@@ -1,5 +1,5 @@
 import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationTokenProvider, uploadFile } from "./api.js";
-import { formatBytes, renderBreadcrumbs, renderEntries } from "./render.js";
+import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
 const dialog = document.querySelector("#browser-dialog");
@@ -10,6 +10,7 @@ const searchInput = document.querySelector("#search-input");
 const breadcrumbs = document.querySelector("#breadcrumbs");
 const summary = document.querySelector("#summary");
 const status = document.querySelector("#status");
+const undoButton = document.querySelector("#undo-move");
 const entries = document.querySelector("#entries");
 const pageLabel = document.querySelector("#page-label");
 const previousPage = document.querySelector("#previous-page");
@@ -21,6 +22,16 @@ const apiMode = document.querySelector("#api-mode");
 const apiOriginInput = document.querySelector("#api-origin");
 const customApiRow = document.querySelector("#custom-api-row");
 const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
+const moveDialog = document.querySelector("#move-dialog");
+const moveFolders = document.querySelector("#move-folders");
+const moveCrumbs = document.querySelector("#move-breadcrumbs");
+const moveStatus = document.querySelector("#move-status");
+let moveSource;
+let moveDestination = "";
+let moveVersion = 0;
+let movePage = 1;
+let draggedPath;
+let undoMove;
 if (window.location.hostname === "jcd1991.github.io") {
   apiMode.querySelector('option[value="same-origin"]').disabled = true;
 }
@@ -124,6 +135,51 @@ entries.addEventListener("click", (event) => {
   state = { ...state, path: button.closest("tr").dataset.path, page: 1 };
   writeState(state);
   loadEntries();
+});
+entries.addEventListener("dragstart", event => {
+  const row = event.target.closest("tr[data-path]");
+  if (!row || mutationBusy || !demoWritesEnabled) { event.preventDefault(); return; }
+  draggedPath = row.dataset.path;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", draggedPath);
+});
+entries.addEventListener("dragend", clearDrag);
+for (const zone of [entries, breadcrumbs]) {
+  zone.addEventListener("dragover", event => {
+    const selector = zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]";
+    const target = event.target.closest(selector);
+    if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return;
+    event.preventDefault(); event.dataTransfer.dropEffect = "move"; target.classList.add("drop-target");
+  });
+  zone.addEventListener("dragleave", event => event.target.closest(".drop-target")?.classList.remove("drop-target"));
+  zone.addEventListener("drop", event => {
+    const selector = zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]";
+    const target = event.target.closest(selector);
+    if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return;
+    event.preventDefault(); const source = draggedPath; clearDrag();
+    executeMove(source, joinPath(target.dataset.path, source.split("/").pop()));
+  });
+}
+document.querySelector("#move-close").addEventListener("click", closeMovePicker);
+moveDialog.addEventListener("cancel", closeMovePicker);
+moveDialog.addEventListener("close", () => { moveVersion++; moveSource = undefined; });
+moveFolders.addEventListener("click", event => {
+  const button = event.target.closest("button[data-path]");
+  if (button) loadMoveFolders(button.dataset.path, 1);
+});
+moveCrumbs.addEventListener("click", event => {
+  const button = event.target.closest("button[data-path]");
+  if (button) loadMoveFolders(button.dataset.path, 1);
+});
+document.querySelector("#move-previous").addEventListener("click", () => loadMoveFolders(moveDestination, movePage - 1));
+document.querySelector("#move-next").addEventListener("click", () => loadMoveFolders(moveDestination, movePage + 1));
+document.querySelector("#move-submit").addEventListener("click", () => {
+  const source = moveSource;
+  closeMovePicker();
+  executeMove(source, joinPath(moveDestination, source.split("/").pop()));
+});
+undoButton.addEventListener("click", () => {
+  if (undoMove && !mutationBusy) executeMove(undoMove.destination, undoMove.source, true);
 });
 document.querySelector("thead").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-sort]");
@@ -416,6 +472,10 @@ function createTurnstileTokenProvider(siteKey) {
 function setReady(ready) {
   for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
   for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
+  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), closeButton, previousPage, nextPage,
+    document.querySelector("#refresh"), apiMode, apiOriginInput, apiForm.querySelector("button[type=submit]"),
+    ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) control.disabled = mutationBusy;
+  undoButton.disabled = mutationBusy || !demoWritesEnabled;
 }
 
 function syncApiMode() {
@@ -433,6 +493,10 @@ document.querySelector("#refresh").addEventListener("click", () => {
 async function mutateEntry(button) {
   const operation = button.dataset.action;
   const source = button.closest("tr").dataset.path;
+  if (operation === "move") {
+    moveSource = source; moveDestination = parentPath(source);
+    moveDialog.showModal(); await loadMoveFolders(moveDestination, 1); return;
+  }
   let destination = null;
   if (operation === "delete") {
     if (!window.confirm(`Permanently delete "${source}" and all its contents?`)) return;
@@ -449,4 +513,40 @@ async function mutateEntry(button) {
   snapshot = undefined;
   await loadEntries();
   if (error) setStatus(error, true);
+}
+
+async function loadMoveFolders(path, page) {
+  const version = ++moveVersion; moveDestination = path; movePage = Math.max(1, page);
+  moveStatus.textContent = "Loading folders…"; renderBreadcrumbs(moveCrumbs, path); moveFolders.replaceChildren();
+  document.querySelector("#move-submit").disabled = !validDrop(moveSource, path);
+  try {
+    const result = await fetchEntries({ path, query: "", sort: "name", direction: "asc", page: movePage }, undefined);
+    if (version !== moveVersion || !moveDialog.open) return;
+    movePage = result.page; renderMoveFolders(moveFolders, result.entries);
+    document.querySelector("#move-page").textContent = `Page ${result.page} of ${result.totalPages}`;
+    document.querySelector("#move-previous").disabled = result.page <= 1;
+    document.querySelector("#move-next").disabled = result.page >= result.totalPages;
+    moveStatus.textContent = result.entries.some(entry => entry.kind === "folder") ? "Choose a folder or move here." : "No folders on this page. Use the page controls to continue.";
+  } catch (error) { if (version === moveVersion) moveStatus.textContent = error.message; }
+}
+
+function closeMovePicker() { if (moveDialog.open) moveDialog.close(); }
+function parentPath(path) { const index = path.lastIndexOf("/"); return index < 0 ? "" : path.slice(0, index); }
+function joinPath(folder, name) { return folder ? `${folder}/${name}` : name; }
+function validDrop(source, folder) { return Boolean(source) && folder !== source && !folder.startsWith(`${source}/`) && joinPath(folder, source.split("/").pop()) !== source; }
+function clearDrag() { draggedPath = undefined; entries.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); breadcrumbs.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); }
+
+async function executeMove(source, destination, isUndo = false) {
+  if (mutationBusy || !demoWritesEnabled || !validDrop(source, parentPath(destination))) return;
+  mutationBusy = true; setReady(false); setStatus("Moving…");
+  let succeeded = false;
+  await measure("move", async () => { await changeEntry("move", source, destination); succeeded = true; });
+  const failed = status.classList.contains("error"); mutationBusy = false; snapshot = undefined;
+  if (succeeded && !failed) {
+    if (isUndo) { undoMove = undefined; undoButton.hidden = true; }
+    else { undoMove = { source, destination }; undoButton.hidden = false; }
+    await loadEntries();
+    setStatus(isUndo ? `Move undone. Returned ${source} to ${destination}.` : `Moved ${source} to ${destination}.`);
+  } else if (!failed) { await loadEntries(); setStatus("Move outcome is uncertain. Check the listing before retrying.", true); }
+  setReady(viewReady);
 }

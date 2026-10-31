@@ -26,11 +26,13 @@ export function renderEntries(target, entries) {
       open.className = "entry-name";
       open.dataset.action = "open-folder";
       open.textContent = `📁 ${entry.name}`;
+      open.draggable = true;
       nameCell.append(open);
     } else {
       const name = document.createElement("span");
       name.className = "file-name";
       name.textContent = `📄 ${entry.name}`;
+      name.draggable = true;
       nameCell.append(name);
     }
     const size = document.createElement("td");
@@ -61,6 +63,17 @@ export function renderEntries(target, entries) {
     }
     row.append(nameCell, size, modified, action);
     fragment.append(row);
+  }
+  target.replaceChildren(fragment);
+}
+
+export function renderMoveFolders(target, entries) {
+  const fragment = document.createDocumentFragment();
+  for (const entry of entries.filter(item => item.kind === "folder")) {
+    const row = document.createElement("tr"); row.dataset.path = entry.path; row.dataset.kind = "folder";
+    const cell = document.createElement("td"); const button = document.createElement("button");
+    button.type = "button"; button.className = "entry-name"; button.dataset.path = entry.path; button.textContent = `📁 ${entry.name}`;
+    cell.append(button); row.append(cell); fragment.append(row);
   }
   target.replaceChildren(fragment);
 }

@@ -9,6 +9,7 @@ A compact file browser built with ASP.NET Core and vanilla JavaScript. Open it l
 - Show counts and total file size for the current result set.
 - Upload and download files from the browser.
 - Copy, move, and delete files and folders with path validation and bounded work.
+- Drag entries onto folders or breadcrumbs to move them; use the Move picker on keyboard or touch, and Undo the latest successful move.
 - Choose a same-origin or custom API server in **Backend connection**. The selection is saved in that browser.
 
 The browser is plain HTML, CSS, and ES modules; it has no UI framework or frontend build step. It also works from a GitHub Pages project path because local assets use relative URLs.
