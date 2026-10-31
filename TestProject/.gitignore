@@ -1,0 +1,10 @@
+bin/
+obj/
+TestProject.Tests/bin/
+TestProject.Tests/obj/
+.env
+
+browser-tests/node_modules/
+browser-tests/test-results/
+browser-tests/playwright-report/
+/docs/INTERVIEW_STUDY_GUIDE.md
