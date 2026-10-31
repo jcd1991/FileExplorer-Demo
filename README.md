@@ -55,6 +55,8 @@ dotnet test TestProject.sln -c Release
 
 The optional browser regression suite is under `TestProject/browser-tests/`; it uses Playwright only for tests, not in the app. See [CI/CD and testing](#cicd-and-testing) for its command and what the current Pages workflow verifies.
 
+Bounded hosted read and 100 MiB transfer measurements, their limits, and the repeatable k6 download script are documented in [performance research](TestProject/docs/PERFORMANCE_RESEARCH.md).
+
 ## CI/CD and testing
 
 `.github/workflows/pages.yml` runs when a commit is pushed to `main` or when the workflow is started manually. It publishes `TestProject/wwwroot/` to GitHub Pages. A successful Pages run confirms the static site was published; it does **not** restore or build the .NET API, run the .NET tests, or run the Playwright browser suite.
