@@ -52,7 +52,32 @@ dotnet build TestProject.sln -c Release
 dotnet test TestProject.sln -c Release
 ```
 
-The optional browser regression suite is under `TestProject/browser-tests/`; it uses Playwright only for tests, not in the app.
+The optional browser regression suite is under `TestProject/browser-tests/`; it uses Playwright only for tests, not in the app. See [CI/CD and testing](#cicd-and-testing) for its command and what the current Pages workflow verifies.
+
+## CI/CD and testing
+
+`.github/workflows/pages.yml` runs when a commit is pushed to `main` or when the workflow is started manually. It publishes `TestProject/wwwroot/` to GitHub Pages. A successful Pages run confirms the static site was published; it does **not** restore or build the .NET API, run the .NET tests, or run the Playwright browser suite.
+
+Run the .NET checks from `TestProject/` before publishing code:
+
+```sh
+dotnet restore TestProject.sln
+dotnet build TestProject.sln -c Release
+dotnet test TestProject.sln -c Release
+```
+
+To run the optional browser regression suite, install Node.js and run this from the repository root:
+
+```sh
+cd TestProject
+dotnet build TestProject.sln -c Release
+cd browser-tests
+npm ci
+npx playwright install chromium
+npm test
+```
+
+The Playwright configuration starts the API on `127.0.0.1:5187` with generated temporary fixtures, then removes those fixtures after the run. The app itself has no Node.js or Playwright runtime dependency.
 
 ## API overview
 
@@ -84,6 +109,35 @@ For the Pages UI to call Render, the API must allow the Pages origin through `Co
 - [Render API health/config](https://file-explorer-demo-api.onrender.com/api/config)
 
 To connect the Pages browser, open **Backend connection**, choose **A custom API server**, enter `https://file-explorer-demo-api.onrender.com`, and select **Connect**. The choice is saved in that browser. Render also serves the browser and API from one origin at its own URL.
+
+### Use GitHub Pages with your local API
+
+The Pages browser can call the API running on your own computer. This is useful for trying local code from the public Pages UI: the page stays on GitHub Pages, while file requests go to `localhost` on the same computer where the browser is open.
+
+Trust the local HTTPS development certificate once on Windows or macOS, if it is not already trusted:
+
+```sh
+dotnet dev-certs https --trust
+```
+
+Start the API from `TestProject/`, allowing the Pages site origin through the API's CORS configuration:
+
+```sh
+cd TestProject
+Cors__AllowedOrigins__0=https://jcd1991.github.io dotnet run --project TestProject.csproj
+```
+
+In PowerShell, set the environment variable before starting the API:
+
+```powershell
+cd TestProject
+$env:Cors__AllowedOrigins__0 = "https://jcd1991.github.io"
+dotnet run --project TestProject.csproj
+```
+
+Then open the [GitHub Pages browser](https://jcd1991.github.io/FileExplorer-Demo/), expand **Backend connection**, choose **A custom API server**, enter `https://localhost:7146`, and select **Connect**. If Chrome asks whether the Pages site may access the local network or loopback, allow it for this demo. The app saves the selected API URL in that browser; choose the Render URL again to switch back to the shared hosted demo.
+
+The local API uses `TestProject/SampleFiles` by default and listens on loopback through the supplied launch profile. Its file operations have no authentication, so keep it bound to localhost and use only demo or disposable files. CORS controls which browser origins may read responses; it is not authorization. See the [.NET HTTPS development certificate guide](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-dev-certs) and [Chrome's Local Network Access guide](https://developer.chrome.com/docs/modern-web-guidance/guides/security/local-network-access) for certificate setup and browser permission details.
 
 ## Safety and limits
 
