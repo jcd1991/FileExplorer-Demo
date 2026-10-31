@@ -265,10 +265,8 @@ function configureDemo(config, backendOrigin) {
     return;
   }
 
-  const limitText = `Free-hosting demo limits (shared by visitors): ${demo.uploadLimitMiB} MiB per upload; ${demo.requestBurst} requests in a burst, then ${demo.requestRefillCount} every ${demo.requestRefillSeconds} seconds; up to ${demo.maxConcurrentRequests} API requests at once; ${demo.creationsPerWindow} uploads or copies per ${demo.creationWindowMinutes} minutes; ${demo.mutationsPerWindow} moves or deletes per minute. Render Free may sleep after ${demo.idleSleepMinutes} minutes without traffic, and demo file changes reset when the service sleeps, restarts, or redeploys.`;
   for (const notice of notices) {
-    notice.textContent = limitText;
-    notice.hidden = false;
+    renderDemoLimits(notice, demo);
   }
 
   if (!demo.turnstileReady || !demo.turnstileSiteKey) {
@@ -283,6 +281,43 @@ function configureDemo(config, backendOrigin) {
   securityCheck.hidden = false;
   setMutationTokenProvider(createTurnstileTokenProvider(demo.turnstileSiteKey));
   setReady(viewReady);
+}
+
+function renderDemoLimits(notice, demo) {
+  const header = document.createElement("div");
+  header.className = "free-demo-limits__header";
+
+  const icon = document.createElement("span");
+  icon.className = "free-demo-limits__icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "✦";
+
+  const titleGroup = document.createElement("div");
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "free-demo-limits__eyebrow";
+  eyebrow.textContent = "FREE PLAN FIELD GUIDE";
+  const title = document.createElement("h3");
+  title.textContent = "A few things to know";
+  titleGroup.append(eyebrow, title);
+  header.append(icon, titleGroup);
+
+  const list = document.createElement("ul");
+  list.className = "free-demo-limits__list";
+  appendLimitItem(list, `${demo.uploadLimitMiB} MiB per upload.`, "That’s the maximum size for one file.");
+  appendLimitItem(list, "Shared request pool.", `${demo.requestBurst} requests in a burst, then ${demo.requestRefillCount} every ${demo.requestRefillSeconds} seconds; up to ${demo.maxConcurrentRequests} at a time.`);
+  appendLimitItem(list, "Shared file-change limits.", `${demo.creationsPerWindow} uploads or copies per ${demo.creationWindowMinutes} minutes, and ${demo.mutationsPerWindow} moves or deletes per minute.`);
+  appendLimitItem(list, "The demo may nap.", `Render Free can sleep after ${demo.idleSleepMinutes} minutes idle; demo files reset after sleep, restart, or redeploy.`);
+
+  notice.replaceChildren(header, list);
+  notice.hidden = false;
+}
+
+function appendLimitItem(list, heading, detail) {
+  const item = document.createElement("li");
+  const label = document.createElement("strong");
+  label.textContent = heading;
+  item.append(label, document.createTextNode(` ${detail}`));
+  list.append(item);
 }
 
 function createTurnstileTokenProvider(siteKey) {
