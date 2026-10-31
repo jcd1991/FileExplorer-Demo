@@ -118,8 +118,13 @@ app.Use(async (context, next) =>
             }
 
             var token = context.Request.Headers["X-Turnstile-Token"].ToString();
-            if (!await turnstileVerifier.IsValidAsync(token, context.RequestAborted))
+            var verification = await turnstileVerifier.ValidateAsync(token, context.RequestAborted);
+            if (!verification.IsValid)
             {
+                app.Logger.LogWarning(
+                    "Turnstile rejected a file change. Reason={Reason}; ProviderErrorCodes={ErrorCodes}",
+                    verification.Reason,
+                    string.Join(",", verification.ErrorCodes));
                 await RejectAsync(context, 0, "Complete the security check before changing files.", StatusCodes.Status403Forbidden);
                 return;
             }
@@ -263,10 +268,11 @@ sealed class TurnstileVerifier(string secretKey)
         "file-explorer-demo-api.onrender.com"
     };
 
-    public async Task<bool> IsValidAsync(string token, CancellationToken cancellationToken)
+    public async Task<TurnstileVerificationResult> ValidateAsync(string token, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(secretKey) || string.IsNullOrWhiteSpace(token) || token.Length > 2048)
-            return false;
+        if (string.IsNullOrWhiteSpace(secretKey)) return Failure("secret-not-configured");
+        if (string.IsNullOrWhiteSpace(token)) return Failure("token-missing");
+        if (token.Length > 2048) return Failure("token-too-large");
 
         using var content = new FormUrlEncodedContent(
         [
@@ -279,30 +285,41 @@ sealed class TurnstileVerifier(string secretKey)
         try
         {
             using var response = await Client.PostAsync(SiteverifyUrl, content, timeout.Token);
-            if (!response.IsSuccessStatusCode) return false;
+            if (!response.IsSuccessStatusCode) return Failure($"siteverify-http-{(int)response.StatusCode}");
             var validation = await response.Content.ReadFromJsonAsync<TurnstileValidation>(cancellationToken: timeout.Token);
-            return validation is { Success: true, Action: ExpectedAction } &&
-                validation.Hostname is not null && AllowedHostnames.Contains(validation.Hostname);
+            if (validation is null) return Failure("siteverify-empty-response");
+            if (!validation.Success) return Failure("siteverify-rejected", validation.ErrorCodes);
+            if (!string.Equals(validation.Action, ExpectedAction, StringComparison.Ordinal))
+                return Failure("action-mismatch", validation.ErrorCodes);
+            if (validation.Hostname is null || !AllowedHostnames.Contains(validation.Hostname))
+                return Failure("hostname-not-allowed", validation.ErrorCodes);
+            return new TurnstileVerificationResult(true, "verified", []);
         }
         catch (HttpRequestException)
         {
-            return false;
+            return Failure("siteverify-network-error");
         }
         catch (JsonException)
         {
-            return false;
+            return Failure("siteverify-invalid-json");
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return false;
+            return Failure("siteverify-timeout");
         }
     }
+
+    private static TurnstileVerificationResult Failure(string reason, string[]? errorCodes = null) =>
+        new(false, reason, errorCodes ?? []);
 
     private sealed record TurnstileValidation(
         [property: JsonPropertyName("success")] bool Success,
         [property: JsonPropertyName("hostname")] string? Hostname,
-        [property: JsonPropertyName("action")] string? Action);
+        [property: JsonPropertyName("action")] string? Action,
+        [property: JsonPropertyName("error-codes")] string[]? ErrorCodes);
 }
+
+sealed record TurnstileVerificationResult(bool IsValid, string Reason, string[] ErrorCodes);
 
 sealed class DemoRateLimiters(
     TokenBucketRateLimiter api,
