@@ -47,9 +47,13 @@ apiForm.addEventListener("submit", async (event) => {
 
   const previousOrigin = getApiOrigin();
   try {
-    const origin = setApiOrigin(apiMode.value === "custom" ? apiOriginInput.value : "");
+    setApiOrigin(apiMode.value === "custom" ? apiOriginInput.value : "");
     const config = await getConfig();
     diagnosticLogging = config.diagnosticsEnabled === true;
+    const origin = getApiOrigin();
+    apiOriginInput.value = origin;
+    apiMode.value = origin ? "custom" : "same-origin";
+    syncApiMode();
     snapshot = undefined;
     setStatus(`Connected to ${origin || window.location.origin}.`);
     if (state.open) await loadEntries();

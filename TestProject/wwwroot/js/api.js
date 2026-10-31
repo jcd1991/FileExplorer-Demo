@@ -1,21 +1,28 @@
 const apiOriginKey = "fileBrowser.apiOrigin";
+const sameOriginSetting = "same-origin";
+const pagesApiOrigin = "https://file-explorer-demo-api.onrender.com";
+
+function defaultApiOrigin() {
+  return window.location.hostname === "jcd1991.github.io" ? pagesApiOrigin : "";
+}
 
 export function getApiOrigin() {
   let value;
   try {
     value = localStorage.getItem(apiOriginKey);
   } catch {
-    return "";
+    return defaultApiOrigin();
   }
-  try { return normalizeApiOrigin(value ?? ""); }
-  catch { return ""; }
+  if (value === sameOriginSetting) return "";
+  try { return normalizeApiOrigin(value || defaultApiOrigin()); }
+  catch { return defaultApiOrigin(); }
 }
 
 export function setApiOrigin(value) {
   const normalized = normalizeApiOrigin(value);
   try {
     if (normalized) localStorage.setItem(apiOriginKey, normalized);
-    else localStorage.removeItem(apiOriginKey);
+    else localStorage.setItem(apiOriginKey, sameOriginSetting);
   } catch {
     throw new Error("This browser could not save the backend choice. Allow local storage for this site and try again.");
   }

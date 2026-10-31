@@ -108,7 +108,7 @@ For the Pages UI to call Render, the API must allow the Pages origin through `Co
 - [Render-hosted browser and API](https://file-explorer-demo-api.onrender.com/)
 - [Render API health/config](https://file-explorer-demo-api.onrender.com/api/config)
 
-To connect the Pages browser, open **Backend connection**, choose **A custom API server**, enter `https://file-explorer-demo-api.onrender.com`, and select **Connect**. The choice is saved in that browser. Render also serves the browser and API from one origin at its own URL.
+The Pages browser uses `https://file-explorer-demo-api.onrender.com` automatically, so a new visitor can browse without setting a backend URL. A previously saved custom URL in that browser still takes precedence. To switch back to Render after trying a local API, open **Backend connection**, choose **A custom API server**, enter the Render URL, and select **Connect**. Render also serves the browser and API from one origin at its own URL.
 
 ### Use GitHub Pages with your local API
 
