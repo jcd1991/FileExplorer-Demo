@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+**/.env
+**/.env.*
+**/node_modules/
+**/playwright-report/
+**/test-results/
+**/TestResults/

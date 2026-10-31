@@ -1,0 +1,5 @@
+Welcome to the File Browser demo!
+
+This is a throwaway playground. Browse, search, upload, download, copy, move,
+and delete sample files. On Render Free, changes can reset when the service
+spins down or restarts.

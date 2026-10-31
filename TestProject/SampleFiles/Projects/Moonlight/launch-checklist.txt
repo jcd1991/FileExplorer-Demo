@@ -1,0 +1,9 @@
+Moonlight launch checklist
+==========================
+
+- Find this file with search.
+- Copy it to Reports/2026/launch-checklist.txt.
+- Move it into another folder.
+- Delete it when you are done.
+
+This is fictional demo content.
