@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -38,13 +37,13 @@ builder.Services.AddSingleton(new DemoRateLimiters(
         QueueLimit = 0
     }),
         new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
-    {
-        PermitLimit = 2,
-        Window = TimeSpan.FromMinutes(5),
-        AutoReplenishment = true,
-        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-        QueueLimit = 0
-    }),
+        {
+            PermitLimit = 2,
+            Window = TimeSpan.FromMinutes(5),
+            AutoReplenishment = true,
+            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            QueueLimit = 0
+        }),
     new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
     {
         PermitLimit = 20,
@@ -193,14 +192,13 @@ static async Task ForwardAsync(HttpContext context)
     var targetUri = new Uri(new Uri(backendOrigin), $"{context.Request.Path}{context.Request.QueryString}");
     using var request = new HttpRequestMessage(new HttpMethod(context.Request.Method), targetUri);
 
-    if (context.Request.ContentLength is > 0 || context.Request.Headers.ContainsKey("Transfer-Encoding"))
+    // HTTP/2 bodies may have a content type without Content-Length or Transfer-Encoding.
+    var hasRequestBody = context.Request.ContentLength is > 0 ||
+        context.Request.Headers.ContainsKey("Transfer-Encoding") ||
+        context.Request.ContentType is not null;
+    if (hasRequestBody)
     {
-        var content = new StreamContent(context.Request.Body);
-        if (context.Request.ContentLength is long contentLength)
-            content.Headers.ContentLength = contentLength;
-        if (MediaTypeHeaderValue.TryParse(context.Request.ContentType, out var mediaType))
-            content.Headers.ContentType = mediaType;
-        request.Content = content;
+        request.Content = new StreamContent(context.Request.Body);
     }
 
     foreach (var header in context.Request.Headers)
