@@ -250,7 +250,7 @@ function showError(error) {
 
 function configureDemo(config, backendOrigin) {
   const demo = config.demo;
-  const notices = document.querySelectorAll(".demo-limits");
+  const notices = document.querySelectorAll(".free-demo-limits");
   const securityCheck = document.querySelector("#demo-security-check");
   securityCheck.hidden = true;
   securityCheck.querySelector("p").textContent = "A security check may appear before file changes.";
