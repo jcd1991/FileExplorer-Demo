@@ -58,17 +58,31 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
   await row.getByRole('button', { name: 'Copy browser.txt', exact: true }).click();
   row = page.locator('tr[data-path="Alpha/copied.txt"]');
   await expect(row).toBeVisible();
-  page.once('dialog', dialog => dialog.accept('Alpha/moved.txt'));
   await row.getByRole('button', { name: 'Move copied.txt', exact: true }).click();
-  row = page.locator('tr[data-path="Alpha/moved.txt"]');
+  await page.locator('#move-folders').getByRole('button', { name: '📁 Nested' }).click();
+  await page.locator('#move-submit').click();
+  await page.locator('#entries').getByRole('button', { name: '📁 Nested' }).click();
+  row = page.locator('tr[data-path="Alpha/Nested/copied.txt"]');
   await expect(row).toBeVisible();
   page.once('dialog', dialog => dialog.dismiss());
-  await row.getByRole('button', { name: 'Delete moved.txt', exact: true }).click();
+  await row.getByRole('button', { name: 'Delete copied.txt', exact: true }).click();
   await expect(row).toBeVisible();
   page.once('dialog', dialog => dialog.accept());
-  await row.getByRole('button', { name: 'Delete moved.txt', exact: true }).click();
+  await row.getByRole('button', { name: 'Delete copied.txt', exact: true }).click();
   await expect(row).toHaveCount(0);
-  await expect(page.locator('tr[data-path="Alpha/browser.txt"]')).toBeVisible();
+  await expect(page.locator('tr[data-path="Alpha/Nested/report.txt"]')).toBeVisible();
+});
+
+test('move picker cancels with Escape and restores focus', async ({ page }) => {
+  await page.goto('/?open=1');
+  await page.locator('#upload-file').setInputFiles({ name: 'drag-me.txt', mimeType: 'text/plain', buffer: Buffer.from('drag bytes') });
+  await page.getByRole('button', { name: 'Upload', exact: true }).click();
+  const source = page.locator('tr[data-path="drag-me.txt"]');
+  await source.getByRole('button', { name: 'Move drag-me.txt', exact: true }).click();
+  await expect(page.locator('#move-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#move-dialog')).not.toBeVisible();
+  await expect(source.getByRole('button', { name: 'Move drag-me.txt', exact: true })).toBeFocused();
 });
 
 test('paging reuses a stable snapshot and Refresh sees changes', async ({ page, request }) => {

@@ -12,6 +12,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-
 #open-browser:hover, .search-row button:hover, .upload-form button:hover { background: #0649c7; }
 dialog { width: min(1100px, calc(100vw - 2rem)); max-width: none; max-height: min(90vh, 900px); padding: 0; border: 0; border-radius: .8rem; box-shadow: 0 24px 70px #17212f55; color: inherit; }
 dialog::backdrop { background: #14213199; }
+.move-picker { padding: 1.4rem; }
 .browser { padding: 1.4rem; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; }
 .dialog-header h2 { margin: 0; }

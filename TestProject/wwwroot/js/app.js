@@ -1,5 +1,5 @@
 import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, uploadFile } from "./api.js";
-import { formatBytes, renderBreadcrumbs, renderEntries } from "./render.js";
+import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
 const dialog = document.querySelector("#browser-dialog");
@@ -20,6 +20,13 @@ const apiForm = document.querySelector("#api-form");
 const apiMode = document.querySelector("#api-mode");
 const apiOriginInput = document.querySelector("#api-origin");
 const customApiRow = document.querySelector("#custom-api-row");
+const moveDialog = document.querySelector("#move-dialog");
+const moveFolders = document.querySelector("#move-folders");
+const moveCrumbs = document.querySelector("#move-breadcrumbs");
+const moveStatus = document.querySelector("#move-status");
+let moveSource;
+let moveDestination = "";
+let moveVersion = 0;
 let state = readState();
 let activeRequest;
 let requestVersion = 0;
@@ -111,6 +118,15 @@ entries.addEventListener("click", (event) => {
   writeState(state);
   loadEntries();
 });
+document.querySelector("#move-close").addEventListener("click", closeMovePicker);
+moveDialog.addEventListener("cancel", closeMovePicker);
+moveDialog.addEventListener("close", () => { moveVersion++; moveSource = undefined; });
+moveFolders.addEventListener("click", event => { const button = event.target.closest("button[data-path]"); if (button) loadMoveFolders(button.dataset.path, 1); });
+moveCrumbs.addEventListener("click", event => { const button = event.target.closest("button[data-path]"); if (button) loadMoveFolders(button.dataset.path, 1); });
+document.querySelector("#move-previous").addEventListener("click", () => loadMoveFolders(moveDestination, movePage - 1));
+document.querySelector("#move-next").addEventListener("click", () => loadMoveFolders(moveDestination, movePage + 1));
+document.querySelector("#move-submit").addEventListener("click", () => { const source = moveSource; const destination = joinPath(moveDestination, source.split("/").pop()); closeMovePicker(); executeMove(source, destination); });
+let movePage = 1; let movePages = 1;
 document.querySelector("thead").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-sort]");
   if (!button) return;
@@ -237,6 +253,11 @@ function showError(error) {
 function setReady(ready) {
   for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy;
   for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy;
+  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), closeButton, previousPage, nextPage,
+    document.querySelector("#refresh"), apiMode, apiOriginInput, apiForm.querySelector("button[type=submit]"),
+    ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) {
+    control.disabled = mutationBusy;
+  }
 }
 
 function syncApiMode() {
@@ -254,6 +275,7 @@ document.querySelector("#refresh").addEventListener("click", () => {
 async function mutateEntry(button) {
   const operation = button.dataset.action;
   const source = button.closest("tr").dataset.path;
+  if (operation === "move") { moveSource = source; moveDestination = parentPath(source); moveDialog.showModal(); await loadMoveFolders(moveDestination, 1); return; }
   let destination = null;
   if (operation === "delete") {
     if (!window.confirm(`Permanently delete "${source}" and all its contents?`)) return;
@@ -270,4 +292,39 @@ async function mutateEntry(button) {
   snapshot = undefined;
   await loadEntries();
   if (error) setStatus(error, true);
+}
+
+async function loadMoveFolders(path, page) {
+  const version = ++moveVersion; moveDestination = path; movePage = Math.max(1, page); moveStatus.textContent = "Loading folders…";
+  document.querySelector("#move-submit").disabled = !validDrop(moveSource, path);
+  renderBreadcrumbs(moveCrumbs, path); moveFolders.replaceChildren();
+  try {
+    const result = await fetchEntries({ path, query: "", sort: "name", direction: "asc", page: movePage }, undefined);
+    if (version !== moveVersion || !moveDialog.open) return;
+    movePage = result.page; movePages = result.totalPages; renderMoveFolders(moveFolders, result.entries);
+    document.querySelector("#move-page").textContent = `Page ${movePage} of ${movePages}`;
+    document.querySelector("#move-previous").disabled = movePage <= 1; document.querySelector("#move-next").disabled = movePage >= movePages;
+    moveStatus.textContent = result.entries.some(entry => entry.kind === "folder") ? "Choose a folder or move here." : "No folders on this page. Use the page controls to continue.";
+  } catch (error) { if (version === moveVersion) moveStatus.textContent = error.message; }
+}
+
+function closeMovePicker() { if (moveDialog.open) moveDialog.close(); }
+function parentPath(path) { const index = path.lastIndexOf("/"); return index < 0 ? "" : path.slice(0, index); }
+function joinPath(folder, name) { return folder ? `${folder}/${name}` : name; }
+function validDrop(source, folder) { return Boolean(source) && folder !== source && !folder.startsWith(`${source}/`) && joinPath(folder, source.split("/").pop()) !== source; }
+
+
+async function executeMove(source, destination) {
+  if (mutationBusy || !validDrop(source, parentPath(destination))) return;
+  mutationBusy = true; setReady(false); setStatus("Moving…");
+  let succeeded = false;
+  await measure("move", async () => { await changeEntry("move", source, destination); succeeded = true; });
+  const failed = status.classList.contains("error");
+  mutationBusy = false; snapshot = undefined;
+  if (succeeded && !failed) {
+    await loadEntries();
+    setStatus(`Moved ${source} to ${destination}.`);
+  }
+  else if (!failed) { await loadEntries(); setStatus("Move outcome is uncertain. Check the listing before retrying.", true); }
+  setReady(viewReady);
 }

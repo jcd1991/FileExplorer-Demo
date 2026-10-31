@@ -63,6 +63,14 @@
       </footer>
     </section>
   </dialog>
+  <dialog id="move-dialog" aria-labelledby="move-title">
+    <section class="move-picker">
+      <header class="dialog-header"><div><p class="eyebrow">MOVE ENTRY</p><h2 id="move-title">Choose destination</h2></div><button id="move-close" class="icon-button" type="button" aria-label="Cancel move">×</button></header>
+      <p id="move-source"></p><nav id="move-breadcrumbs" class="breadcrumbs" aria-label="Destination folder"></nav><p id="move-status" class="status" role="status" aria-live="polite"></p>
+      <div class="table-scroll"><table><thead><tr><th scope="col">Folders</th></tr></thead><tbody id="move-folders"></tbody></table></div>
+      <footer class="controls"><div class="pager"><button id="move-previous" type="button">Previous</button><span id="move-page"></span><button id="move-next" type="button">Next</button></div><button id="move-submit" type="button">Move here</button></footer>
+    </section>
+  </dialog>
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

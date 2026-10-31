@@ -65,6 +65,17 @@ export function renderEntries(target, entries) {
   target.replaceChildren(fragment);
 }
 
+export function renderMoveFolders(target, entries) {
+  const fragment = document.createDocumentFragment();
+  for (const entry of entries.filter(item => item.kind === "folder")) {
+    const row = document.createElement("tr"); row.dataset.path = entry.path; row.dataset.kind = "folder";
+    const cell = document.createElement("td"); const button = document.createElement("button");
+    button.type = "button"; button.className = "entry-name"; button.dataset.path = entry.path; button.textContent = `📁 ${entry.name}`;
+    cell.append(button); row.append(cell); fragment.append(row);
+  }
+  target.replaceChildren(fragment);
+}
+
 function addCrumb(target, label, path) {
   const button = document.createElement("button");
   button.type = "button";
