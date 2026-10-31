@@ -359,7 +359,8 @@ function renderDemoLimits(notice, demo) {
 
   const list = document.createElement("ul");
   list.className = "free-demo-limits__list";
-  appendLimitItem(list, `${demo.uploadLimitMiB} MiB per upload.`, "That’s the maximum size for one file.");
+  const uploadLimitBytes = demo.uploadLimitMiB * 1024 * 1024;
+  appendLimitItem(list, `${demo.uploadLimitMiB} MiB per file (${uploadLimitBytes.toLocaleString("en-US")} bytes).`, "That’s the maximum upload size.");
   appendLimitItem(list, "Shared request pool.", `${demo.requestBurst} requests in a burst, then ${demo.requestRefillCount} every ${demo.requestRefillSeconds} seconds; up to ${demo.maxConcurrentRequests} at a time.`);
   appendLimitItem(list, "Shared file-change limits.", `${demo.creationsPerWindow} uploads or copies per ${demo.creationWindowMinutes} minutes, and ${demo.mutationsPerWindow} moves or deletes per minute.`);
   appendLimitItem(list, "The demo may nap.", `Render Free can sleep after ${demo.idleSleepMinutes} minutes idle; demo files reset after sleep, restart, or redeploy.`);
