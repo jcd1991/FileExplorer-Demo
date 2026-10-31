@@ -1,4 +1,4 @@
-import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, uploadFile } from "./api.js";
+import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationTokenProvider, uploadFile } from "./api.js";
 import { formatBytes, renderBreadcrumbs, renderEntries } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
@@ -20,6 +20,10 @@ const apiForm = document.querySelector("#api-form");
 const apiMode = document.querySelector("#api-mode");
 const apiOriginInput = document.querySelector("#api-origin");
 const customApiRow = document.querySelector("#custom-api-row");
+const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
+if (window.location.hostname === "jcd1991.github.io") {
+  apiMode.querySelector('option[value="same-origin"]').disabled = true;
+}
 let state = readState();
 let activeRequest;
 let requestVersion = 0;
@@ -29,9 +33,14 @@ let snapshot;
 let snapshotKey;
 let mutationBusy = false;
 let viewReady = false;
+const initialBackendOrigin = getApiOrigin() || window.location.origin;
+let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
 
-try { diagnosticLogging = (await getConfig()).diagnosticsEnabled === true; }
-catch (error) { showError(error); }
+getConfig().then((config) => {
+  if ((getApiOrigin() || window.location.origin) !== initialBackendOrigin) return;
+  diagnosticLogging = config.diagnosticsEnabled === true;
+  configureDemo(config, initialBackendOrigin);
+}).catch(showError);
 
 apiOriginInput.value = getApiOrigin();
 apiMode.value = apiOriginInput.value ? "custom" : "same-origin";
@@ -51,6 +60,7 @@ apiForm.addEventListener("submit", async (event) => {
     const config = await getConfig();
     diagnosticLogging = config.diagnosticsEnabled === true;
     const origin = getApiOrigin();
+    configureDemo(config, origin || window.location.origin);
     apiOriginInput.value = origin;
     apiMode.value = origin ? "custom" : "same-origin";
     syncApiMode();
@@ -238,9 +248,139 @@ function showError(error) {
   setStatus(error.message || "The request failed.", true);
 }
 
+function configureDemo(config, backendOrigin) {
+  const demo = config.demo;
+  const notices = document.querySelectorAll(".demo-limits");
+  const securityCheck = document.querySelector("#demo-security-check");
+  for (const notice of notices) {
+    notice.textContent = "";
+    notice.hidden = true;
+  }
+  securityCheck.hidden = true;
+  securityCheck.querySelector("p").textContent = "A security check may appear before file changes.";
+  demoWritesEnabled = backendOrigin !== renderApiOrigin;
+  setMutationTokenProvider(undefined);
+  if (!demo) {
+    setReady(viewReady);
+    return;
+  }
+
+  const limitText = `Free-hosting demo limits (shared by visitors): ${demo.uploadLimitMiB} MiB per upload; ${demo.requestBurst} requests in a burst, then ${demo.requestRefillCount} every ${demo.requestRefillSeconds} seconds; up to ${demo.maxConcurrentRequests} API requests at once; ${demo.creationsPerWindow} uploads or copies per ${demo.creationWindowMinutes} minutes; ${demo.mutationsPerWindow} moves or deletes per minute. Render Free may sleep after ${demo.idleSleepMinutes} minutes without traffic, and demo file changes reset when the service sleeps, restarts, or redeploys.`;
+  for (const notice of notices) {
+    notice.textContent = limitText;
+    notice.hidden = false;
+  }
+
+  if (!demo.turnstileReady || !demo.turnstileSiteKey) {
+    demoWritesEnabled = false;
+    securityCheck.hidden = false;
+    securityCheck.querySelector("p").textContent = "File changes are temporarily disabled while the demo security check is configured.";
+    setReady(viewReady);
+    return;
+  }
+
+  demoWritesEnabled = true;
+  securityCheck.hidden = false;
+  setMutationTokenProvider(createTurnstileTokenProvider(demo.turnstileSiteKey));
+  setReady(viewReady);
+}
+
+function createTurnstileTokenProvider(siteKey) {
+  const container = document.querySelector("#turnstile-widget");
+  let scriptPromise;
+  let widgetPromise;
+  let widgetId;
+  let pending;
+
+  function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    if (scriptPromise) return scriptPromise;
+
+    scriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", () => {
+        if (window.turnstile) resolve(window.turnstile);
+        else reject(new Error("The security check could not be loaded."));
+      }, { once: true });
+      script.addEventListener("error", () => reject(new Error("The security check could not be loaded. Check your connection and try again.")), { once: true });
+      document.head.append(script);
+    }).catch((error) => {
+      scriptPromise = undefined;
+      throw error;
+    });
+    return scriptPromise;
+  }
+
+  async function getWidget() {
+    if (widgetId !== undefined) return { api: window.turnstile, id: widgetId };
+    if (!widgetPromise) {
+      widgetPromise = loadTurnstile().then((api) => {
+        widgetId = api.render(container, {
+          sitekey: siteKey,
+          action: "file_mutation",
+          execution: "execute",
+          appearance: "interaction-only",
+          size: "compact",
+          callback: (token) => {
+            setStatus("Security check passed. Sending the file change…");
+            finish(token);
+          },
+          "error-callback": () => fail("The security check failed. Try the file change again."),
+          "expired-callback": () => fail("The security check expired. Try the file change again."),
+          "timeout-callback": () => fail("The security check timed out. Try the file change again."),
+          "unsupported-callback": () => fail("This browser cannot run the security check.")
+        });
+        return { api, id: widgetId };
+      }).catch((error) => {
+        widgetPromise = undefined;
+        throw error;
+      });
+    }
+    return widgetPromise;
+  }
+
+  function finish(token) {
+    if (!pending) return;
+    const current = pending;
+    pending = undefined;
+    clearTimeout(current.timeout);
+    current.resolve(token);
+  }
+
+  function fail(message) {
+    if (!pending) return;
+    const current = pending;
+    pending = undefined;
+    clearTimeout(current.timeout);
+    current.reject(new Error(message));
+  }
+
+  return async () => {
+    const widget = await getWidget();
+    return new Promise((resolve, reject) => {
+      if (pending) {
+        reject(new Error("A security check is already in progress."));
+        return;
+      }
+      const timeout = setTimeout(() => fail("The security check took too long. Try the file change again."), 120_000);
+      pending = {
+        resolve: (token) => resolve({ token, reset: () => widget.api.reset(widget.id) }),
+        reject,
+        timeout
+      };
+      setStatus("Completing the security check…");
+      try { widget.api.execute(widget.id); }
+      catch { fail("The security check could not start. Try the file change again."); }
+    });
+  };
+}
+
 function setReady(ready) {
-  for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy;
-  for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy;
+  for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
+  for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
 }
 
 function syncApiMode() {

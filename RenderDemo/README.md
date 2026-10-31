@@ -11,7 +11,7 @@ This folder holds the backend deployment files, separate from the application so
 
 The public-repository Blueprint flow does not connect Render to your GitHub account, so it does not auto-deploy on future pushes. To publish later changes, sync the Blueprint or trigger a manual deploy from Render.
 
-The Blueprint sets the file root to `/app/demo-files`, allows one upload at a time, and reduces the snapshot cache budget. It allows the GitHub Pages origin `https://jcd1991.github.io` for cross-origin browser requests.
+The Blueprint sets the file root to `/app/demo-files`, caps uploads at 10 MiB, allows one upload at a time, and reduces the snapshot cache budget. It allows the GitHub Pages origin `https://jcd1991.github.io` for cross-origin browser requests.
 
 ## Demo-only request limits
 
@@ -23,9 +23,21 @@ The `RateLimitProxy` sits in front of the .NET app only in this Render container
 | Simultaneous API requests | 4 |
 | Uploads and copies | 2 every 5 minutes |
 | Delete and move | 20 per minute |
-| Upload request body | 11 MiB total (about a 10 MiB file plus multipart overhead) |
+| Uploaded file | 10 MiB |
+| Upload request body | 11 MiB total, including multipart overhead |
 
 These limits are shared by all visitors. Health checks, CORS preflight requests, and static assets do not use the API quota. Rejected API calls return `429 Too Many Requests` with `Retry-After`; requests are not queued. The counters are in memory and reset when the free service restarts. This caps application work and upload frequency for a demo, but it is not authentication or a guarantee of uninterrupted access; any visitor can consume the shared allowance. Render separately provides network-level DDoS protection; its docs recommend application-level limits for API abuse ([Render DDoS guidance](https://render.com/articles/how-render-handles-ddos-attacks)).
+
+## Turnstile for file changes
+
+The GitHub Pages and Render-hosted browsers request a Turnstile token only when a visitor uploads, copies, moves, or deletes a file. The proxy validates each single-use token with Cloudflare before forwarding the operation. Browsing and downloads remain available without a challenge. If Turnstile is not configured or validation is unavailable, file changes fail closed while browsing remains available.
+
+Create a Cloudflare Turnstile widget in Managed mode and allow these hostnames:
+
+- `jcd1991.github.io`
+- `file-explorer-demo-api.onrender.com`
+
+Set the widget's site key and secret as `Turnstile__SiteKey` and `Turnstile__SecretKey` in the Render service environment. For the existing service, add both values manually under **Environment**; Render prompts for `sync: false` values only during initial Blueprint creation. The site key is returned by the demo-only `/api/demo-config` route for the browser widget. The secret stays in Render and is used only by the proxy's server-side Siteverify call. The Render Blueprint marks both values `sync: false` so Blueprint updates do not overwrite dashboard values. [Turnstile server-side validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/) is required; a browser widget alone does not protect API operations.
 
 ## Free-plan behavior
 

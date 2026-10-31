@@ -1,9 +1,10 @@
 const apiOriginKey = "fileBrowser.apiOrigin";
 const sameOriginSetting = "same-origin";
-const pagesApiOrigin = "https://file-explorer-demo-api.onrender.com";
+const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
+let mutationTokenProvider;
 
 function defaultApiOrigin() {
-  return window.location.hostname === "jcd1991.github.io" ? pagesApiOrigin : "";
+  return window.location.hostname === "jcd1991.github.io" ? renderApiOrigin : "";
 }
 
 export function getApiOrigin() {
@@ -29,6 +30,10 @@ export function setApiOrigin(value) {
   return normalized;
 }
 
+export function setMutationTokenProvider(provider) {
+  mutationTokenProvider = provider;
+}
+
 export function apiUrl(path) {
   const origin = getApiOrigin() || window.location.origin;
   return new URL(`/api/${path.replace(/^\/+/, "")}`, `${origin}/`).toString();
@@ -37,7 +42,13 @@ export function apiUrl(path) {
 export async function getConfig() {
   const response = await fetch(apiUrl("config"));
   if (!response.ok) throw new Error("Could not load browser configuration.");
-  return response.json();
+  const config = await response.json();
+  const selectedOrigin = getApiOrigin() || window.location.origin;
+  if (selectedOrigin === renderApiOrigin) {
+    const demoResponse = await fetch(apiUrl("demo-config"));
+    if (demoResponse.ok) config.demo = await demoResponse.json();
+  }
+  return config;
 }
 
 export async function fetchEntries(state, signal, snapshot) {
@@ -78,13 +89,27 @@ function normalizeApiOrigin(value) {
 }
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options);
-  const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("json") ? await response.json() : null;
-  if (!response.ok) {
-    const error = new Error(payload?.detail || `Request failed (${response.status}).`);
-    error.title = payload?.title;
-    throw error;
+  let proof;
+  try {
+    if (options.method && options.method.toUpperCase() !== "GET" && mutationTokenProvider) {
+      proof = await mutationTokenProvider();
+      options = {
+        ...options,
+        headers: { ...options.headers, "X-Turnstile-Token": proof.token }
+      };
+    }
+
+    const response = await fetch(url, options);
+    const contentType = response.headers.get("content-type") ?? "";
+    const payload = contentType.includes("json") ? await response.json() : null;
+    if (!response.ok) {
+      const error = new Error(payload?.detail || `Request failed (${response.status}).`);
+      error.title = payload?.title;
+      throw error;
+    }
+    return payload;
+  } finally {
+    try { proof?.reset?.(); }
+    catch { /* A failed widget reset must not hide the API result. */ }
   }
-  return payload;
 }

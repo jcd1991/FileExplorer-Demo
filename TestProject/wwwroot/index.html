@@ -11,6 +11,7 @@
   <main class="launch">
     <h1>File Browser</h1>
     <p>Browse the files exposed by this server.</p>
+    <aside class="demo-limits" hidden aria-label="Free demo limits">Free Render demo: 10 MiB per upload. Shared limits are 30 API requests in a burst, then 30 every 30 seconds; 4 concurrent requests; 2 uploads or copies per 5 minutes; and 20 moves or deletes per minute. The service may sleep after 15 minutes idle; demo files reset on sleep or restart.</aside>
     <button id="open-browser" type="button">Open file browser</button>
   </main>
   <dialog id="browser-dialog" aria-labelledby="dialog-title">
@@ -19,6 +20,11 @@
         <div><p class="eyebrow">SERVER FILES</p><h2 id="dialog-title">File browser</h2></div>
         <button id="close-browser" class="icon-button" type="button" aria-label="Close file browser">×</button>
       </header>
+      <aside class="demo-limits" hidden aria-label="Free demo limits">Free Render demo: 10 MiB per upload. Shared limits are 30 API requests in a burst, then 30 every 30 seconds; 4 concurrent requests; 2 uploads or copies per 5 minutes; and 20 moves or deletes per minute. The service may sleep after 15 minutes idle; demo files reset on sleep or restart.</aside>
+      <section id="demo-security-check" class="demo-security-check" hidden aria-label="Security check">
+        <p>A security check may appear before file changes.</p>
+        <div id="turnstile-widget"></div>
+      </section>
       <form id="search-form" role="search">
         <label class="search-label" for="search-input">Search names in this folder and below</label>
         <div class="search-row"><input id="search-input" name="q" type="search" autocomplete="off" placeholder="Search files and folders"><button type="submit">Search</button></div>
@@ -63,6 +69,11 @@
       </footer>
     </section>
   </dialog>
+  <script>
+    if (window.location.hostname === "jcd1991.github.io") {
+      document.querySelectorAll(".demo-limits").forEach((notice) => { notice.hidden = false; });
+    }
+  </script>
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>

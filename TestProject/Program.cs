@@ -30,7 +30,8 @@ builder.Services.AddSingleton(provider => new FileSystemService(rootPath,
     builder.Configuration.GetValue("FileBrowser:UploadStreamBufferBytes", 4096),
     builder.Configuration.GetValue("FileBrowser:MaxConcurrentUploads", 0),
     builder.Configuration.GetValue("FileBrowser:SnapshotCacheMaxViews", 16),
-    builder.Configuration.GetValue("FileBrowser:SnapshotCacheMaxBytes", 64L * 1024 * 1024)));
+    builder.Configuration.GetValue("FileBrowser:SnapshotCacheMaxBytes", 64L * 1024 * 1024),
+    builder.Configuration.GetValue("FileBrowser:MaxUploadBytes", FileSystemService.MaxUploadBytes)));
 builder.Services.AddSingleton(new DiagnosticsSettings(builder.Configuration.GetValue<bool>("Diagnostics:Enabled")));
 
 var app = builder.Build();

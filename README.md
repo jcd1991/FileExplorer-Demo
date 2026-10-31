@@ -92,9 +92,9 @@ POST /api/files/move
 POST /api/files/delete
 ```
 
-All request paths are relative to the configured root. The server rejects traversal and unsupported filesystem entries. Uploads and downloads stream; uploads are limited to 100 MiB. Browse and search paginate results and return summary counts. The client renders only the current page.
+All request paths are relative to the configured root. The server rejects traversal and unsupported filesystem entries. Uploads and downloads stream; the app defaults to a 100 MiB upload cap, which the Render demo configures down to 10 MiB. Browse and search paginate results and return summary counts. The client renders only the current page.
 
-The hosted Render demo applies stricter demo-only limits: uploads are capped at 10 MiB and creation operations are throttled. These limits do not change the local or reviewable app.
+The hosted demo uses a configurable 10 MiB upload cap, shared API rate limits, and a Turnstile check for file changes. Local runs keep the 100 MiB default upload limit. The GitHub Pages browser displays the hosted free-plan limits before visitors open the browser.
 
 ## Hosting
 

@@ -9,6 +9,8 @@ services:
     envVars:
       - key: FileBrowser__RootPath
         value: /app/demo-files
+      - key: FileBrowser__MaxUploadBytes
+        value: "10485760"
       - key: FileBrowser__MaxConcurrentUploads
         value: "1"
       - key: FileBrowser__SnapshotCacheMaxViews
@@ -17,3 +19,7 @@ services:
         value: "16777216"
       - key: Cors__AllowedOrigins__0
         value: https://jcd1991.github.io
+      - key: Turnstile__SiteKey
+        sync: false
+      - key: Turnstile__SecretKey
+        sync: false

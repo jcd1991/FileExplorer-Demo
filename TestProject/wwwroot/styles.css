@@ -8,6 +8,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-
 .launch { max-width: 760px; margin: 12vh auto; padding: 2rem; }
 .launch h1 { margin-bottom: .25rem; }
 .launch p { color: #566474; }
+.demo-limits { margin: 1rem 0; padding: .85rem 1rem; border: 1px solid #e7c66b; border-radius: .5rem; background: #fff8dc; color: #5a470d; font-size: .88rem; line-height: 1.45; }
 #open-browser, .search-row button, .upload-form button { border-color: #155eef; background: #155eef; color: white; }
 #open-browser:hover, .search-row button:hover, .upload-form button:hover { background: #0649c7; }
 dialog { width: min(1100px, calc(100vw - 2rem)); max-width: none; max-height: min(90vh, 900px); padding: 0; border: 0; border-radius: .8rem; box-shadow: 0 24px 70px #17212f55; color: inherit; }
@@ -27,6 +28,8 @@ input { border: 1px solid #b7c2ce; border-radius: .4rem; padding: .55rem .7rem; 
 .summary { min-height: 1.5rem; margin: .5rem 0; font-size: .88rem; color: #465364; }
 .status { min-height: 1.4rem; margin: .3rem 0; color: #566474; font-size: .88rem; }
 .status.error { color: #b42318; }
+.demo-security-check { margin: .75rem 0; padding: .7rem; border: 1px solid #d8dee6; border-radius: .45rem; background: #f8fafc; }
+.demo-security-check p { margin: 0 0 .5rem; color: #566474; font-size: .82rem; }
 .table-scroll { max-height: 48vh; overflow: auto; border: 1px solid #d8dee6; border-radius: .45rem; }
 table { width: 100%; border-collapse: collapse; text-align: left; }
 thead { position: sticky; top: 0; z-index: 1; background: #f0f3f7; }
