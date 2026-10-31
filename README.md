@@ -25,7 +25,7 @@ The browser is plain HTML, CSS, and ES modules; it has no UI framework or fronte
 | `TestProject/wwwroot/js/url-state.js` | Deep-link state parsing and writing |
 | `TestProject/wwwroot/js/render.js` | DOM rendering for breadcrumbs and rows |
 | `TestProject/TestProject.Tests/` | Isolated filesystem and API tests |
-| `RenderDemo/` | Separate container, Render Blueprint, and fictional demo fixtures |
+| `RenderDemo/` | Demo-only container, Render Blueprint, fictional files, and a small rate-limiting proxy |
 
 `TestProject/docs/PROJECT_GUIDE.md` is a guided tour through the request flow, core classes, and important trade-offs.
 
@@ -69,9 +69,11 @@ POST /api/files/delete
 
 All request paths are relative to the configured root. The server rejects traversal and unsupported filesystem entries. Uploads and downloads stream; uploads are limited to 100 MiB. Browse and search paginate results and return summary counts. The client renders only the current page.
 
+The hosted Render demo applies stricter demo-only limits: uploads are capped at 10 MiB and creation operations are throttled. These limits do not change the local or reviewable app.
+
 ## Hosting
 
-The GitHub Actions workflow publishes only `TestProject/wwwroot/` to Pages. Render hosts the .NET API from `RenderDemo/render.yaml`; its container uses only fictional files from `RenderDemo/DemoFiles/` and does not include the local `SampleFiles` directory. See [Render setup](RenderDemo/README.md).
+The GitHub Actions workflow publishes only `TestProject/wwwroot/` to Pages. Render hosts the API through a demo-only reverse proxy configured under `RenderDemo/`; its container uses only fictional files from `RenderDemo/DemoFiles/` and does not include the local `SampleFiles` directory. See [Render setup](RenderDemo/README.md).
 
 For the Pages UI to call Render, the API must allow the Pages origin through `Cors__AllowedOrigins__0`. The site origin is `https://jcd1991.github.io`; the repository path is not part of the origin. CORS is a browser access rule, not authentication.
 
