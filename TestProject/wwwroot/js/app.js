@@ -252,15 +252,15 @@ function configureDemo(config, backendOrigin) {
   const demo = config.demo;
   const notices = document.querySelectorAll(".demo-limits");
   const securityCheck = document.querySelector("#demo-security-check");
-  for (const notice of notices) {
-    notice.textContent = "";
-    notice.hidden = true;
-  }
   securityCheck.hidden = true;
   securityCheck.querySelector("p").textContent = "A security check may appear before file changes.";
   demoWritesEnabled = backendOrigin !== renderApiOrigin;
   setMutationTokenProvider(undefined);
   if (!demo) {
+    for (const notice of notices) {
+      notice.hidden = backendOrigin !== renderApiOrigin;
+      if (notice.hidden) notice.textContent = "";
+    }
     setReady(viewReady);
     return;
   }
