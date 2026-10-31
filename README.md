@@ -77,6 +77,14 @@ The GitHub Actions workflow publishes only `TestProject/wwwroot/` to Pages. Rend
 
 For the Pages UI to call Render, the API must allow the Pages origin through `Cors__AllowedOrigins__0`. The site origin is `https://jcd1991.github.io`; the repository path is not part of the origin. CORS is a browser access rule, not authentication.
 
+### Open the hosted demo
+
+- [GitHub Pages browser](https://jcd1991.github.io/FileExplorer-Demo/)
+- [Render-hosted browser and API](https://file-explorer-demo-api.onrender.com/)
+- [Render API health/config](https://file-explorer-demo-api.onrender.com/api/config)
+
+To connect the Pages browser, open **Backend connection**, choose **A custom API server**, enter `https://file-explorer-demo-api.onrender.com`, and select **Connect**. The choice is saved in that browser. Render also serves the browser and API from one origin at its own URL.
+
 ## Safety and limits
 
 This is a single-user demo API with no authentication. Anyone who reaches the Render endpoint can mutate its fictional files. Keep the API's data root disposable and never point it at production files. The Render container has no production credentials, database connection, or data root.
