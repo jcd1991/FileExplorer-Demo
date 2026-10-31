@@ -26,11 +26,13 @@ export function renderEntries(target, entries) {
       open.className = "entry-name";
       open.dataset.action = "open-folder";
       open.textContent = `📁 ${entry.name}`;
+      open.draggable = true;
       nameCell.append(open);
     } else {
       const name = document.createElement("span");
       name.className = "file-name";
       name.textContent = `📄 ${entry.name}`;
+      name.draggable = true;
       nameCell.append(name);
     }
     const size = document.createElement("td");

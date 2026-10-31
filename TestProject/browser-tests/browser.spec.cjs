@@ -5,6 +5,7 @@ test('deep links, reload, navigation, history, and dialog closure', async ({ pag
   page.on('pageerror', error => errors.push(error.message));
   await page.goto('/?open=1&path=Alpha&q=report&sort=size&direction=desc');
   await expect(page.locator('#browser-dialog')).toBeVisible();
+  await expect(page.locator('.drag-hint')).toContainText('Drag a file or folder onto a folder or breadcrumb to move it');
   await expect(page.locator('#entries')).toContainText('report.txt');
   await page.reload();
   await expect(page.locator('#search-input')).toHaveValue('report');
@@ -73,7 +74,7 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
   await expect(page.locator('tr[data-path="Alpha/Nested/report.txt"]')).toBeVisible();
 });
 
-test('move picker cancels with Escape and restores focus', async ({ page }) => {
+test('move picker cancels with Escape and dragging moves a file into a folder', async ({ page }) => {
   await page.goto('/?open=1');
   await page.locator('#upload-file').setInputFiles({ name: 'drag-me.txt', mimeType: 'text/plain', buffer: Buffer.from('drag bytes') });
   await page.getByRole('button', { name: 'Upload', exact: true }).click();
@@ -83,6 +84,9 @@ test('move picker cancels with Escape and restores focus', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(page.locator('#move-dialog')).not.toBeVisible();
   await expect(source.getByRole('button', { name: 'Move drag-me.txt', exact: true })).toBeFocused();
+  await source.locator('.file-name').dragTo(page.locator('tr[data-path="Alpha"] .entry-name'));
+  await expect(page.locator('#status')).toContainText('Moved drag-me.txt to Alpha/drag-me.txt.');
+  await expect(source).toHaveCount(0);
 });
 
 test('paging reuses a stable snapshot and Refresh sees changes', async ({ page, request }) => {

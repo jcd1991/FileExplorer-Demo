@@ -27,6 +27,7 @@ const moveStatus = document.querySelector("#move-status");
 let moveSource;
 let moveDestination = "";
 let moveVersion = 0;
+let draggedPath;
 let state = readState();
 let activeRequest;
 let requestVersion = 0;
@@ -118,6 +119,16 @@ entries.addEventListener("click", (event) => {
   writeState(state);
   loadEntries();
 });
+entries.addEventListener("dragstart", event => {
+  const row = event.target.closest("tr[data-path]"); if (!row || mutationBusy) { event.preventDefault(); return; }
+  draggedPath = row.dataset.path; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", draggedPath);
+});
+entries.addEventListener("dragend", clearDrag);
+for (const zone of [entries, breadcrumbs]) {
+  zone.addEventListener("dragover", event => { const target = event.target.closest(zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]"); if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; target.classList.add("drop-target"); });
+  zone.addEventListener("dragleave", event => event.target.closest(".drop-target")?.classList.remove("drop-target"));
+  zone.addEventListener("drop", event => { const target = event.target.closest(zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]"); if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return; event.preventDefault(); const source = draggedPath; clearDrag(); executeMove(source, joinPath(target.dataset.path, source.split("/").pop())); });
+}
 document.querySelector("#move-close").addEventListener("click", closeMovePicker);
 moveDialog.addEventListener("cancel", closeMovePicker);
 moveDialog.addEventListener("close", () => { moveVersion++; moveSource = undefined; });
@@ -312,7 +323,7 @@ function closeMovePicker() { if (moveDialog.open) moveDialog.close(); }
 function parentPath(path) { const index = path.lastIndexOf("/"); return index < 0 ? "" : path.slice(0, index); }
 function joinPath(folder, name) { return folder ? `${folder}/${name}` : name; }
 function validDrop(source, folder) { return Boolean(source) && folder !== source && !folder.startsWith(`${source}/`) && joinPath(folder, source.split("/").pop()) !== source; }
-
+function clearDrag() { draggedPath = undefined; entries.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); breadcrumbs.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); }
 
 async function executeMove(source, destination) {
   if (mutationBusy || !validDrop(source, parentPath(destination))) return;

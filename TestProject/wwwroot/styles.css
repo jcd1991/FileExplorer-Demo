@@ -13,6 +13,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid #3b82f6; outline-
 dialog { width: min(1100px, calc(100vw - 2rem)); max-width: none; max-height: min(90vh, 900px); padding: 0; border: 0; border-radius: .8rem; box-shadow: 0 24px 70px #17212f55; color: inherit; }
 dialog::backdrop { background: #14213199; }
 .move-picker { padding: 1.4rem; }
+.drop-target { outline: 3px solid #155eef; outline-offset: -3px; background: #eaf2ff !important; }
+.file-name[draggable="true"], .entry-name[draggable="true"] { cursor: grab; }
+.file-name[draggable="true"]:active, .entry-name[draggable="true"]:active { cursor: grabbing; }
 .browser { padding: 1.4rem; }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; }
 .dialog-header h2 { margin: 0; }
@@ -25,6 +28,7 @@ input { border: 1px solid #b7c2ce; border-radius: .4rem; padding: .55rem .7rem; 
 .breadcrumbs { display: flex; flex-wrap: wrap; gap: .4rem; margin: 1rem 0 .5rem; align-items: center; }
 .breadcrumbs button { padding: .25rem .45rem; border: 0; color: #1456b8; }
 .breadcrumbs span { color: #718096; }
+.drag-hint { margin: 0 0 .65rem; padding: .55rem .7rem; border: 1px solid #c8d9f4; border-radius: .4rem; background: #f0f6ff; color: #344b68; font-size: .85rem; }
 .summary { min-height: 1.5rem; margin: .5rem 0; font-size: .88rem; color: #465364; }
 .status { min-height: 1.4rem; margin: .3rem 0; color: #566474; font-size: .88rem; }
 .status.error { color: #b42318; }
