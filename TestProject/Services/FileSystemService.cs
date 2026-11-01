@@ -17,6 +17,8 @@ public sealed partial class FileSystemService : IDisposable
     private const int MaxPendingDirectories = 100_000;
     private const int MaxSearchSeconds = 5;
     private const string TemporaryPrefix = ".filebrowser-upload-";
+    private const long MultipartOverheadBytes = 1_048_576;
+    private const long BytesPerMiB = 1_048_576;
     // Conservatively reject case aliases on platforms commonly using insensitive filesystems.
     private static readonly StringComparison PathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
         ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -25,6 +27,7 @@ public sealed partial class FileSystemService : IDisposable
     private readonly ILogger<FileSystemService> _logger;
     private readonly int _uploadCopyBufferBytes;
     private readonly int _uploadStreamBufferBytes;
+    private readonly long _maxUploadBytes;
     private readonly SemaphoreSlim? _uploadGate;
     private readonly int _snapshotCacheMaxViews;
     private readonly long _snapshotCacheMaxBytes;
@@ -34,7 +37,8 @@ public sealed partial class FileSystemService : IDisposable
 
     public FileSystemService(string root, ILogger<FileSystemService>? logger = null,
         int uploadCopyBufferBytes = 64 * 1024, int uploadStreamBufferBytes = 4096, int maxConcurrentUploads = 0,
-        int snapshotCacheMaxViews = 16, long snapshotCacheMaxBytes = 64L * 1024 * 1024)
+        int snapshotCacheMaxViews = 16, long snapshotCacheMaxBytes = 64L * 1024 * 1024,
+        long maxUploadBytes = MaxUploadBytes)
     {
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<FileSystemService>.Instance;
         _root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
@@ -49,8 +53,11 @@ public sealed partial class FileSystemService : IDisposable
             throw new ArgumentOutOfRangeException(nameof(snapshotCacheMaxViews));
         if (snapshotCacheMaxBytes is < 1024 or > 1024L * 1024 * 1024)
             throw new ArgumentOutOfRangeException(nameof(snapshotCacheMaxBytes));
+        if (maxUploadBytes is < BytesPerMiB or > MaxUploadBytes || maxUploadBytes % BytesPerMiB != 0)
+            throw new ArgumentOutOfRangeException(nameof(maxUploadBytes));
         _uploadCopyBufferBytes = uploadCopyBufferBytes;
         _uploadStreamBufferBytes = uploadStreamBufferBytes;
+        _maxUploadBytes = maxUploadBytes;
         _uploadGate = maxConcurrentUploads == 0 ? null : new SemaphoreSlim(maxConcurrentUploads, maxConcurrentUploads);
         _snapshotCacheMaxViews = snapshotCacheMaxViews;
         _snapshotCacheMaxBytes = snapshotCacheMaxBytes;
@@ -178,13 +185,13 @@ public sealed partial class FileSystemService : IDisposable
         }
         catch (InvalidDataException)
         {
-            if (request.ContentLength is > MaxUploadBytes + 1_048_576)
+            if (request.ContentLength is long contentLength && contentLength > _maxUploadBytes + MultipartOverheadBytes)
             {
                 throw UploadTooLarge();
             }
             throw new FileBrowserException(StatusCodes.Status400BadRequest, "Invalid multipart request", "The upload request could not be read.");
         }
-        catch (IOException) when (tempPath is not null && new FileInfo(tempPath).Length > MaxUploadBytes)
+        catch (IOException) when (tempPath is not null && new FileInfo(tempPath).Length > _maxUploadBytes)
         {
             throw UploadTooLarge();
         }
@@ -194,9 +201,9 @@ public sealed partial class FileSystemService : IDisposable
         }
     }
 
-    private static MultipartReader CreateUploadReader(HttpRequest request)
+    private MultipartReader CreateUploadReader(HttpRequest request)
     {
-        if (request.ContentLength is > MaxUploadBytes + 1_048_576)
+        if (request.ContentLength is long contentLength && contentLength > _maxUploadBytes + MultipartOverheadBytes)
         {
             throw UploadTooLarge();
         }
@@ -204,7 +211,7 @@ public sealed partial class FileSystemService : IDisposable
         var maxBodySize = request.HttpContext.Features.Get<IHttpMaxRequestBodySizeFeature>();
         if (maxBodySize is { IsReadOnly: false })
         {
-            maxBodySize.MaxRequestBodySize = MaxUploadBytes + 1_048_576;
+            maxBodySize.MaxRequestBodySize = _maxUploadBytes + MultipartOverheadBytes;
         }
 
         if (!MediaTypeHeaderValue.TryParse(request.ContentType, out var mediaType) ||
@@ -218,9 +225,9 @@ public sealed partial class FileSystemService : IDisposable
         {
             throw new FileBrowserException(StatusCodes.Status400BadRequest, "Invalid multipart request", "A valid multipart boundary is required.");
         }
-        return new MultipartReader(boundary, new UploadReadStream(request.Body, MaxUploadBytes + 1_048_576))
+        return new MultipartReader(boundary, new UploadReadStream(request.Body, _maxUploadBytes + MultipartOverheadBytes))
         {
-            BodyLengthLimit = MaxUploadBytes + 1_048_576
+            BodyLengthLimit = _maxUploadBytes + MultipartOverheadBytes
         };
     }
 
@@ -283,8 +290,8 @@ public sealed partial class FileSystemService : IDisposable
         catch (UnauthorizedAccessException) { LogCleanupFailure(_logger, correlationId, null); }
     }
 
-    private static FileBrowserException UploadTooLarge() =>
-        new(StatusCodes.Status413PayloadTooLarge, "Upload too large", "The upload exceeds the 100 MiB limit.");
+    private FileBrowserException UploadTooLarge() =>
+        new(StatusCodes.Status413PayloadTooLarge, "Upload too large", $"The upload exceeds the {_maxUploadBytes / BytesPerMiB} MiB limit.");
 
     private static FileBrowserException FileAlreadyExists() =>
         new(StatusCodes.Status409Conflict, "File already exists", "Choose a different filename; existing files are never overwritten.");
@@ -558,9 +565,9 @@ public sealed partial class FileSystemService : IDisposable
             var read = await source.ReadAsync(buffer.AsMemory(), cancellationToken);
             if (read == 0) break;
             total += read;
-            if (total > MaxUploadBytes)
+            if (total > _maxUploadBytes)
             {
-                throw new FileBrowserException(StatusCodes.Status413PayloadTooLarge, "Upload too large", "The upload exceeds the 100 MiB limit.");
+                throw UploadTooLarge();
             }
             await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
         }

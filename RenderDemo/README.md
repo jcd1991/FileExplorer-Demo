@@ -1,71 +1,56 @@
-# Render Demo Deployment
+# Render Free deployment
 
-This folder contains the hosting wrapper for the interview project. It stays outside `TestProject/` and outside `TestProject_2026_Review.zip`, so the Render account and deployment setup do not become part of the general code-review package.
+This folder holds the backend deployment files, separate from the application source. The Docker build compiles the app and copies only fictional files from `DemoFiles/`. It does not package the local `SampleFiles` directory or connect to production infrastructure.
 
-The container builds the existing .NET app, but includes only fictional files from `DemoFiles/`. It excludes the project's `SampleFiles/`, test fixtures, build output, and local interview study guide. It has no EventYo credentials, database connection, or production data path.
+For repeatable deploy, verification, and rollback steps, see the [Render deployment runbook](DEPLOY_RUNBOOK.md).
 
-## Render account prerequisites
+## Set up the service
 
-Open [Render Dashboard](https://dashboard.render.com/). Sign in or create the free account yourself. If the sign-up flow asks you to enter a password, approve GitHub access, or accept Render's terms, complete those steps directly in the browser.
+1. Sign in to [Render](https://dashboard.render.com/) and create a **Blueprint** from the public repository URL `https://github.com/jcd1991/FileExplorer-Demo`.
+2. Choose branch `main`, Blueprint name `FileExplorer Demo`, and Blueprint path `RenderDemo/render.yaml`.
+3. Confirm the service uses the **Free** plan before applying the Blueprint.
+4. After deployment, open the generated `onrender.com` address. A demo-only reverse proxy serves the browser and forwards API requests to the .NET app on loopback. `/api/config` is the health route.
 
-## Deploy the backend
+The public-repository Blueprint flow does not connect Render to your GitHub account, so it does not auto-deploy on future pushes. To publish later changes, sync the Blueprint or trigger a manual deploy from Render.
 
-The Git repository connected to Render must contain both `TestProject/` and `RenderDemo/`. A private repository is fine for this backend. In the Render dashboard:
+The Blueprint sets the file root to `/app/demo-files`, caps uploads at 100 MiB, allows one upload at a time, and reduces the snapshot cache budget. It allows the GitHub Pages origin `https://jcd1991.github.io` for cross-origin browser requests.
 
-1. Create a **Blueprint** from that repository.
-2. Set the Blueprint file path to `RenderDemo/render.yaml`.
-3. Review the service plan and confirm it is **Free** before creating the service.
-4. After the first deploy, open the generated `onrender.com` URL. The container serves the same-origin UI and API; `/api/config` is the health-check route.
+## Demo-only request limits
 
-## Streamlined deploys with a Render API key
+The `RateLimitProxy` sits in front of the .NET app only in this Render container. The app itself and its reviewable project source stay unchanged. The backend listens on loopback, so public requests pass through the proxy first.
 
-Use an account API key for CI or local deploy scripts instead of storing a password. Keep the value in a local secret store or CI secret named `RENDER_API_KEY`; never commit it, place it in a URL, or print it in logs.
+| Request type | Limit per running service instance |
+| --- | --- |
+| API requests | 30-request burst, then 30 more every 30 seconds |
+| Simultaneous API requests | 4 |
+| Uploads and copies | 2 every 5 minutes |
+| Delete and move | 20 per minute |
+| Uploaded file | 100 MiB |
+| Upload request body | 101 MiB total, including multipart overhead |
 
-1. In Render, open **Account settings → API Keys → Create API key**.
-2. Give it a narrow name such as `file-explorer-demo-deploy` and copy the value once. Render will not show the secret again.
-3. Export it only in the shell or CI job that performs the deploy:
+These limits are shared by all visitors. Health checks, CORS preflight requests, and static assets do not use the API quota. Rejected API calls return `429 Too Many Requests` with `Retry-After`; requests are not queued. The counters are in memory and reset when the free service restarts. This caps application work and upload frequency for a demo, but it is not authentication or a guarantee of uninterrupted access; any visitor can consume the shared allowance. Render separately provides network-level DDoS protection; its docs recommend application-level limits for API abuse ([Render DDoS guidance](https://render.com/articles/how-render-handles-ddos-attacks)).
 
-   ```sh
-   export RENDER_API_KEY='...'
-   export RENDER_SERVICE_ID='srv-dbj2p4u7bikc73e8pgo0'
-   ```
+## Turnstile for file changes
 
-4. Trigger a deploy for the service and poll its status (replace the commit SHA with the release being promoted):
+The GitHub Pages and Render-hosted browsers request a Turnstile token only when a visitor uploads, copies, moves, or deletes a file. The proxy validates each single-use token with Cloudflare before forwarding the operation. Browsing and downloads remain available without a challenge. If Turnstile is not configured or validation is unavailable, file changes fail closed while browsing remains available.
 
-   ```sh
-   curl --fail-with-body -sS \
-     -H "Authorization: Bearer ${RENDER_API_KEY}" \
-     -H 'Content-Type: application/json' \
-     -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-     --data '{"commitId":"ce1e3ab","clearCache":"do_not_clear","deployMode":"build_and_deploy"}'
-   ```
+Create a Cloudflare Turnstile widget in Managed mode and allow these hostnames:
 
-   The response includes a deploy ID. Poll `GET https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys` until the promoted deploy is `live` or `failed`. Do not paste the key into browser fields or chat.
+- `jcd1991.github.io`
+- `file-explorer-demo-api.onrender.com`
 
-5. Confirm the deploy reaches `live`, then verify the service health endpoint:
+Set the widget's site key and secret as `Turnstile__SiteKey` and `Turnstile__SecretKey` in the Render service environment. For the existing service, add both values manually under **Environment**; Render prompts for `sync: false` values only during initial Blueprint creation. The site key is returned by the demo-only `/api/demo-config` route for the browser widget. The secret stays in Render and is used only by the proxy's server-side Siteverify call. The Render Blueprint marks both values `sync: false` so Blueprint updates do not overwrite dashboard values. [Turnstile server-side validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/) is required; a browser widget alone does not protect API operations.
 
-   ```sh
-   curl --fail-with-body -sS "https://file-explorer-demo-api.onrender.com/api/config"
-   ```
+## Free-plan behavior
 
-6. Revoke the key in **Account settings → API Keys** when the work is complete or if it was exposed. Store only the replacement in the CI secret manager.
+Render Free provides 512 MB RAM and 0.1 CPU. It sleeps after 15 minutes without requests; waking can take about a minute. Local file changes are lost when the service sleeps, restarts, or redeploys, so the demo resets to the fictional fixture files. This is for a lightweight demo, not durable storage or performance measurement. See [free-service limits](https://render.com/docs/free) and [compute plans](https://render.com/docs/compute-plans).
 
-The Blueprint sets a separate root at `/app/demo-files`, one concurrent upload, and a smaller snapshot cache. The static UI hosted separately can connect through its **Backend connection** setting once CORS is configured.
+## Safety
 
-## GitHub Pages integration
+The API has no authentication and allows upload, delete, move, and copy. Anyone who reaches the Render URL can change these demo files, subject to the demo rate limits above. The container has no production credentials, database URL, or production data root, so changes stay inside this disposable service. Do not add personal or production data to `DemoFiles/`.
 
-After the Pages URL is known, add this environment variable to the Render service, using the exact site origin (scheme and host only):
+Render can suspend free services when included usage is exhausted. If the account has a payment method, some overages can incur charges; set a spend limit and review usage ([Render billing FAQ](https://render.com/docs/faq)).
 
-```text
-Cors__AllowedOrigins__0=https://ACCOUNT.github.io
-```
+## Shared application source
 
-For a project Pages site, the origin is still `https://ACCOUNT.github.io`; the repository path is not part of the origin. CORS is a browser rule, not user authentication.
-
-## Free-plan behavior and safety
-
-Render Free uses 512 MB RAM and 0.1 CPU. It spins down after 15 minutes without requests; waking can take about a minute. File changes are lost when it spins down, restarts, or redeploys, so the demo data resets to the checked-in fictional fixtures. It is intended for a lightweight interview demo, not durable storage or performance testing. See [free-service limits](https://render.com/docs/free) and [compute plans](https://render.com/docs/compute-plans).
-
-The browser API remains unauthenticated and allows delete, move, copy, and upload operations. Those operations affect only this disposable Render service. Visitors can still alter the demo data or exhaust the service's free usage. Set an account spend limit and review usage; if a payment method is attached, usage beyond included allowances can incur charges ([Render FAQ](https://render.com/docs/faq)).
-
-The app build context uses `Dockerfile.dockerignore` beside the Dockerfile. It intentionally excludes the PDF-containing `SampleFiles/` directory and the ignored local study guide. Do not add production files, credentials, or personal data to `DemoFiles/`.
+Local and demo deployments use the same `main` source. The Docker image replaces the local frontend profile with `RenderDemo/frontend-deployment.js`; Pages applies that same profile to its staging directory after validation. See [deployment modes](../TestProject/docs/DEPLOYMENT_MODES.md).

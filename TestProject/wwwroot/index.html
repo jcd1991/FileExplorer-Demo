@@ -5,21 +5,61 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Browse and transfer files from a configured server directory.">
   <title>File Browser</title>
-  <link rel="stylesheet" href="./styles.css?v=maplarge-ui-demo-1">
+  <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css?v=deployment-1">
 </head>
 <body>
   <main class="launch">
     <p class="launch-kicker">FILEEXPLORER</p>
     <h1>Browse your files with confidence.</h1>
     <p>Explore, search, and transfer files from a configured server directory.</p>
+    <aside class="free-demo-limits" hidden aria-label="Free demo limits">
+      <div class="free-demo-limits__header">
+        <span class="free-demo-limits__icon" aria-hidden="true">✦</span>
+        <div><p class="free-demo-limits__eyebrow">FREE PLAN FIELD GUIDE</p><h3>A few things to know</h3></div>
+      </div>
+      <ul class="free-demo-limits__list">
+        <li><strong>100 MiB per file (104,857,600 bytes).</strong> That’s the maximum upload size.</li>
+        <li><strong>Shared request pool.</strong> 30 requests in a burst, then 30 every 30 seconds; up to 4 at a time.</li>
+        <li><strong>Shared file-change limits.</strong> 2 uploads or copies per 5 minutes, and 20 moves or deletes per minute.</li>
+        <li><strong>The demo may nap.</strong> Render Free can sleep after 15 minutes idle; demo files reset after sleep, restart, or redeploy.</li>
+      </ul>
+    </aside>
     <button id="open-browser" type="button">Open file browser</button>
   </main>
   <dialog id="browser-dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="summary">
     <section class="browser">
+      <div id="browser-loading-mask" class="loading-mask" role="status" aria-live="polite" aria-busy="true">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span id="browser-loading-label">Initializing file browser…</span>
+      </div>
       <header class="dialog-header">
         <div><p class="eyebrow">SERVER FILES</p><h2 id="dialog-title">File browser</h2></div>
         <button id="close-browser" class="icon-button" type="button" aria-label="Close file browser">×</button>
       </header>
+      <aside class="free-demo-limits" hidden aria-label="Free demo limits">
+        <div class="free-demo-limits__header">
+          <span class="free-demo-limits__icon" aria-hidden="true">✦</span>
+          <div><p class="free-demo-limits__eyebrow">FREE PLAN FIELD GUIDE</p><h3>A few things to know</h3></div>
+        </div>
+        <ul class="free-demo-limits__list">
+          <li><strong>100 MiB per file (104,857,600 bytes).</strong> That’s the maximum upload size.</li>
+          <li><strong>Shared request pool.</strong> 30 requests in a burst, then 30 every 30 seconds; up to 4 at a time.</li>
+          <li><strong>Shared file-change limits.</strong> 2 uploads or copies per 5 minutes, and 20 moves or deletes per minute.</li>
+          <li><strong>The demo may nap.</strong> Render Free can sleep after 15 minutes idle; demo files reset after sleep, restart, or redeploy.</li>
+        </ul>
+      </aside>
+      <section id="demo-security-check" class="demo-security-check" hidden aria-label="Security check">
+        <p>A security check may appear before file changes.</p>
+      </section>
+      <div id="security-check-overlay" class="security-check-overlay" hidden role="region" aria-labelledby="security-check-title" aria-live="polite" aria-busy="false">
+        <section class="security-check-card">
+          <p class="eyebrow">SECURITY CHECK</p>
+          <h3 id="security-check-title">Verify before changing files</h3>
+          <p>Complete Cloudflare’s check to continue. The file browser is paused until verification finishes.</p>
+          <div id="turnstile-widget"></div>
+        </section>
+      </div>
       <div class="view-toolbar">
         <form id="search-form" role="search">
           <label class="search-label" for="search-input">Search names in this folder and below</label>
@@ -70,12 +110,23 @@
   </dialog>
   <dialog id="move-dialog" aria-labelledby="move-title">
     <section class="move-picker">
+      <div id="move-loading-mask" class="loading-mask" role="status" aria-live="polite" aria-busy="true" hidden>
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span id="move-loading-label">Loading destination folders…</span>
+      </div>
       <header class="dialog-header"><div><p class="eyebrow">MOVE ENTRY</p><h2 id="move-title">Choose destination</h2></div><button id="move-close" class="icon-button" type="button" aria-label="Cancel move">×</button></header>
       <p id="move-source"></p><nav id="move-breadcrumbs" class="breadcrumbs" aria-label="Destination folder"></nav><p id="move-status" class="status" role="status" aria-live="polite"></p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Folders</th></tr></thead><tbody id="move-folders"></tbody></table></div>
       <footer class="controls"><div class="pager"><button id="move-previous" type="button">Previous</button><span id="move-page"></span><button id="move-next" type="button">Next</button></div><button id="move-submit" type="button">Move here</button></footer>
     </section>
   </dialog>
-  <script type="module" src="./js/app.js?v=demo-ui-1"></script>
+  <script type="module">
+    import { deployment } from "./js/deployment.js";
+    if (deployment.mode === "demo") {
+      document.body.classList.add("hosted-demo");
+      document.querySelectorAll(".free-demo-limits").forEach((notice) => { notice.hidden = false; });
+    }
+  </script>
+  <script type="module" src="./js/app.js?v=deployment-1"></script>
 </body>
 </html>

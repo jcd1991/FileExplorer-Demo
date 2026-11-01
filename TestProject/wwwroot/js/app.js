@@ -1,4 +1,5 @@
-import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, uploadFile } from "./api.js";
+import { deployment } from "./deployment.js";
+import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-12";
 import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
@@ -25,15 +26,25 @@ const apiOriginInput = document.querySelector("#api-origin");
 const customApiRow = document.querySelector("#custom-api-row");
 const connectionSettings = document.querySelector(".connection-settings");
 const sortHeaders = [...document.querySelectorAll("th[data-sort-column]")];
+const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
 const moveDialog = document.querySelector("#move-dialog");
 const moveFolders = document.querySelector("#move-folders");
 const moveCrumbs = document.querySelector("#move-breadcrumbs");
 const moveStatus = document.querySelector("#move-status");
+const securityCheckOverlay = document.querySelector("#security-check-overlay");
+const browserLoadingMask = document.querySelector("#browser-loading-mask");
+const browserLoadingLabel = document.querySelector("#browser-loading-label");
+const moveLoadingMask = document.querySelector("#move-loading-mask");
+const moveLoadingLabel = document.querySelector("#move-loading-label");
 let moveSource;
 let moveDestination = "";
 let moveVersion = 0;
+let movePage = 1;
 let draggedPath;
 let undoMove;
+if (deployment.mode === "demo") {
+  apiMode.querySelector('option[value="same-origin"]').disabled = true;
+}
 let state = readState();
 let activeRequest;
 let requestVersion = 0;
@@ -43,13 +54,31 @@ let snapshot;
 let snapshotKey;
 let mutationBusy = false;
 let viewReady = false;
+let browserLoadingTimer;
+let moveLoadingTimer;
+let browserMutationLoadingLabel = "Applying file change…";
+setMutationRequestListener((active) => {
+  if (active) setBrowserLoading(true, browserMutationLoadingLabel, true);
+  else if (!mutationBusy) setBrowserLoading(false);
+});
+const initialBackendOrigin = getApiOrigin() || window.location.origin;
+let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
+let configurationReady = false;
+let configurationError;
 
 if (["localhost", "127.0.0.1", "::1"].includes(window.location.hostname) && !new URLSearchParams(window.location.search).has("showConnection")) {
   connectionSettings.hidden = true;
 }
 
-try { diagnosticLogging = (await getConfig()).diagnosticsEnabled === true; }
-catch (error) { showError(error); }
+const configurationPromise = getConfig().then((config) => {
+  if ((getApiOrigin() || window.location.origin) !== initialBackendOrigin) return;
+  diagnosticLogging = config.diagnosticsEnabled === true;
+  configureDemo(config, initialBackendOrigin);
+}).catch((error) => {
+  configurationError = error;
+}).finally(() => {
+  configurationReady = true;
+});
 
 apiOriginInput.value = getApiOrigin();
 apiMode.value = apiOriginInput.value ? "custom" : "same-origin";
@@ -65,9 +94,14 @@ apiForm.addEventListener("submit", async (event) => {
 
   const previousOrigin = getApiOrigin();
   try {
-    const origin = setApiOrigin(apiMode.value === "custom" ? apiOriginInput.value : "");
+    setApiOrigin(apiMode.value === "custom" ? apiOriginInput.value : "");
     const config = await getConfig();
     diagnosticLogging = config.diagnosticsEnabled === true;
+    const origin = getApiOrigin();
+    configureDemo(config, origin || window.location.origin);
+    apiOriginInput.value = origin;
+    apiMode.value = origin ? "custom" : "same-origin";
+    syncApiMode();
     snapshot = undefined;
     setStatus(`Connected to ${origin || window.location.origin}.`);
     if (state.open) await loadEntries();
@@ -143,29 +177,50 @@ document.addEventListener("toggle", event => {
 }, true);
 document.addEventListener("scroll", () => closeActionMenus(), true);
 entries.addEventListener("dragstart", event => {
-  const row = event.target.closest("tr[data-path]"); if (!row || mutationBusy) { event.preventDefault(); return; }
-  draggedPath = row.dataset.path; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", draggedPath);
+  const row = event.target.closest("tr[data-path]");
+  if (!row || mutationBusy || !demoWritesEnabled) { event.preventDefault(); return; }
+  draggedPath = row.dataset.path;
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", draggedPath);
 });
 entries.addEventListener("dragend", clearDrag);
 for (const zone of [entries, breadcrumbs]) {
-  zone.addEventListener("dragover", event => { const target = event.target.closest(zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]"); if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return; event.preventDefault(); event.dataTransfer.dropEffect = "move"; target.classList.add("drop-target"); });
+  zone.addEventListener("dragover", event => {
+    const selector = zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]";
+    const target = event.target.closest(selector);
+    if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return;
+    event.preventDefault(); event.dataTransfer.dropEffect = "move"; target.classList.add("drop-target");
+  });
   zone.addEventListener("dragleave", event => event.target.closest(".drop-target")?.classList.remove("drop-target"));
-  zone.addEventListener("drop", event => { const target = event.target.closest(zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]"); if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return; event.preventDefault(); const source = draggedPath; clearDrag(); executeMove(source, joinPath(target.dataset.path, source.split("/").pop())); });
+  zone.addEventListener("drop", event => {
+    const selector = zone === entries ? 'tr[data-kind="folder"]' : "button[data-path]";
+    const target = event.target.closest(selector);
+    if (!draggedPath || !target || !validDrop(draggedPath, target.dataset.path)) return;
+    event.preventDefault(); const source = draggedPath; clearDrag();
+    executeMove(source, joinPath(target.dataset.path, source.split("/").pop()));
+  });
 }
 document.querySelector("#move-close").addEventListener("click", closeMovePicker);
 moveDialog.addEventListener("cancel", closeMovePicker);
 moveDialog.addEventListener("close", () => { moveVersion++; moveSource = undefined; });
-moveFolders.addEventListener("click", event => { const button = event.target.closest("button[data-path]"); if (button) loadMoveFolders(button.dataset.path, 1); });
-moveCrumbs.addEventListener("click", event => { const button = event.target.closest("button[data-path]"); if (button) loadMoveFolders(button.dataset.path, 1); });
+moveFolders.addEventListener("click", event => {
+  const button = event.target.closest("button[data-path]");
+  if (button) loadMoveFolders(button.dataset.path, 1);
+});
+moveCrumbs.addEventListener("click", event => {
+  const button = event.target.closest("button[data-path]");
+  if (button) loadMoveFolders(button.dataset.path, 1);
+});
 document.querySelector("#move-previous").addEventListener("click", () => loadMoveFolders(moveDestination, movePage - 1));
 document.querySelector("#move-next").addEventListener("click", () => loadMoveFolders(moveDestination, movePage + 1));
-document.querySelector("#move-submit").addEventListener("click", () => { const source = moveSource; const destination = joinPath(moveDestination, source.split("/").pop()); closeMovePicker(); executeMove(source, destination); });
-undoButton.addEventListener("click", () => {
-  if (!undoMove || mutationBusy) return;
-  const previousMove = undoMove;
-  executeMove(previousMove.destination, previousMove.source, true);
+document.querySelector("#move-submit").addEventListener("click", () => {
+  const source = moveSource;
+  closeMovePicker();
+  executeMove(source, joinPath(moveDestination, source.split("/").pop()));
 });
-let movePage = 1; let movePages = 1;
+undoButton.addEventListener("click", () => {
+  if (undoMove && !mutationBusy) executeMove(undoMove.destination, undoMove.source, true);
+});
 document.querySelector("thead").addEventListener("click", (event) => {
   const button = event.target.closest("button[data-sort]");
   if (!button) return;
@@ -187,6 +242,7 @@ uploadForm.addEventListener("submit", async (event) => {
   if (!file || mutationBusy || !viewReady) return;
   mutationBusy = true;
   setReady(false);
+  browserMutationLoadingLabel = "Uploading…";
   setStatus("Uploading…");
   const result = await measure("upload", () => uploadFile(state.path, file));
   mutationBusy = false;
@@ -237,8 +293,11 @@ async function loadEntries() {
   pageLabel.textContent = "";
   renderBreadcrumbs(breadcrumbs, state.path);
   previousPage.disabled = nextPage.disabled = true;
+  setBrowserLoading(true, configurationReady ? "Loading files…" : "Initializing demo…");
   setStatus("Loading…");
   await measure(state.query.trim() ? "search" : "browse", async () => {
+    await configurationPromise;
+    if (configurationError) throw configurationError;
     let result;
     try {
       result = await fetchEntries(state, activeRequest.signal, snapshot);
@@ -251,6 +310,7 @@ async function loadEntries() {
     if (currentVersion !== requestVersion) return;
     snapshot = result.snapshotId;
     viewReady = true;
+    setBrowserLoading(false);
     renderEntries(entries, result.entries);
     setReady(true);
     renderBreadcrumbs(breadcrumbs, state.path);
@@ -265,6 +325,7 @@ async function loadEntries() {
     if (result.page !== readState().page) writeState(state, true);
     setStatus(result.entries.length === 0 ? "No matching entries." : "");
   }, () => currentVersion === requestVersion);
+  if (currentVersion === requestVersion && !viewReady) setBrowserLoading(false);
 }
 
 function changePage(delta) {
@@ -298,19 +359,243 @@ function syncSortAccessibility() {
   for (const header of sortHeaders) header.setAttribute("aria-sort", header.dataset.sortColumn === state.sort ? (state.direction === "asc" ? "ascending" : "descending") : "none");
 }
 
+function setBrowserLoading(visible, message = "Loading files…", immediate = false) {
+  browserLoadingLabel.textContent = message;
+  clearTimeout(browserLoadingTimer);
+  if (!visible) {
+    browserLoadingMask.hidden = true;
+    browserLoadingMask.setAttribute("aria-busy", "false");
+    return;
+  }
+  if (!browserLoadingMask.hidden) return;
+  const show = () => {
+    browserLoadingMask.hidden = false;
+    browserLoadingMask.setAttribute("aria-busy", "true");
+  };
+  if (immediate) show();
+  else browserLoadingTimer = setTimeout(show, 220);
+}
+
+function setMoveLoading(visible, message = "Loading destination folders…") {
+  moveLoadingLabel.textContent = message;
+  clearTimeout(moveLoadingTimer);
+  if (!visible) {
+    moveLoadingMask.hidden = true;
+    moveLoadingMask.setAttribute("aria-busy", "false");
+    return;
+  }
+  if (!moveLoadingMask.hidden) return;
+  moveLoadingTimer = setTimeout(() => {
+    moveLoadingMask.hidden = false;
+    moveLoadingMask.setAttribute("aria-busy", "true");
+  }, 220);
+}
+
 function showError(error) {
   setStatus(error.message || "The request failed.", true);
 }
 
-function setReady(ready) {
-  for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy;
-  for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy;
-  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), closeButton, previousPage, nextPage,
-    document.querySelector("#refresh"), apiMode, apiOriginInput, apiForm.querySelector("button[type=submit]"),
-    ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) {
-    control.disabled = mutationBusy;
+function configureDemo(config, backendOrigin) {
+  const demo = config.demo;
+  const notices = document.querySelectorAll(".free-demo-limits");
+  const securityCheck = document.querySelector("#demo-security-check");
+  securityCheck.hidden = true;
+  securityCheck.querySelector("p").textContent = "A security check may appear before file changes.";
+  demoWritesEnabled = backendOrigin !== renderApiOrigin;
+  setMutationTokenProvider(undefined);
+  if (!demo) {
+    for (const notice of notices) {
+      notice.hidden = backendOrigin !== renderApiOrigin;
+      if (notice.hidden) notice.textContent = "";
+    }
+    setReady(viewReady);
+    return;
   }
-  undoButton.disabled = mutationBusy || !undoMove;
+
+  for (const notice of notices) {
+    renderDemoLimits(notice, demo);
+  }
+
+  if (!demo.turnstileReady || !demo.turnstileSiteKey) {
+    demoWritesEnabled = false;
+    securityCheck.hidden = false;
+    securityCheck.querySelector("p").textContent = "File changes are temporarily disabled while the demo security check is configured.";
+    setReady(viewReady);
+    return;
+  }
+
+  demoWritesEnabled = true;
+  securityCheck.hidden = false;
+  setMutationTokenProvider(createTurnstileTokenProvider(demo.turnstileSiteKey));
+  setReady(viewReady);
+}
+
+function renderDemoLimits(notice, demo) {
+  const header = document.createElement("div");
+  header.className = "free-demo-limits__header";
+
+  const icon = document.createElement("span");
+  icon.className = "free-demo-limits__icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "✦";
+
+  const titleGroup = document.createElement("div");
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "free-demo-limits__eyebrow";
+  eyebrow.textContent = "FREE PLAN FIELD GUIDE";
+  const title = document.createElement("h3");
+  title.textContent = "A few things to know";
+  titleGroup.append(eyebrow, title);
+  header.append(icon, titleGroup);
+
+  const list = document.createElement("ul");
+  list.className = "free-demo-limits__list";
+  const uploadLimitBytes = demo.uploadLimitMiB * 1024 * 1024;
+  appendLimitItem(list, `${demo.uploadLimitMiB} MiB per file (${uploadLimitBytes.toLocaleString("en-US")} bytes).`, "That’s the maximum upload size.");
+  appendLimitItem(list, "Shared request pool.", `${demo.requestBurst} requests in a burst, then ${demo.requestRefillCount} every ${demo.requestRefillSeconds} seconds; up to ${demo.maxConcurrentRequests} at a time.`);
+  appendLimitItem(list, "Shared file-change limits.", `${demo.creationsPerWindow} uploads or copies per ${demo.creationWindowMinutes} minutes, and ${demo.mutationsPerWindow} moves or deletes per minute.`);
+  appendLimitItem(list, "The demo may nap.", `Render Free can sleep after ${demo.idleSleepMinutes} minutes idle; demo files reset after sleep, restart, or redeploy.`);
+
+  notice.replaceChildren(header, list);
+  notice.hidden = false;
+}
+
+function appendLimitItem(list, heading, detail) {
+  const item = document.createElement("li");
+  const label = document.createElement("strong");
+  label.textContent = heading;
+  item.append(label, document.createTextNode(` ${detail}`));
+  list.append(item);
+}
+
+function createTurnstileTokenProvider(siteKey) {
+  const container = document.querySelector("#turnstile-widget");
+  let scriptPromise;
+  let widgetPromise;
+  let widgetId;
+  let pending;
+
+  function showSecurityCheck() {
+    setBrowserLoading(false);
+    securityCheckOverlay.hidden = false;
+    securityCheckOverlay.setAttribute("aria-busy", "true");
+    setStatus("Complete the security check to continue.");
+  }
+
+  function hideSecurityCheck() {
+    securityCheckOverlay.hidden = true;
+    securityCheckOverlay.setAttribute("aria-busy", "false");
+  }
+
+  function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    if (scriptPromise) return scriptPromise;
+
+    scriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+      script.async = true;
+      script.defer = true;
+      script.addEventListener("load", () => {
+        if (window.turnstile) resolve(window.turnstile);
+        else reject(new Error("The security check could not be loaded."));
+      }, { once: true });
+      script.addEventListener("error", () => reject(new Error("The security check could not be loaded. Check your connection and try again.")), { once: true });
+      document.head.append(script);
+    }).catch((error) => {
+      scriptPromise = undefined;
+      throw error;
+    });
+    return scriptPromise;
+  }
+
+  async function getWidget() {
+    if (widgetId !== undefined) return { api: window.turnstile, id: widgetId };
+    if (!widgetPromise) {
+      widgetPromise = loadTurnstile().then((api) => {
+        widgetId = api.render(container, {
+          sitekey: siteKey,
+          action: "file_mutation",
+          execution: "execute",
+          appearance: "interaction-only",
+          size: "compact",
+          "before-interactive-callback": showSecurityCheck,
+          callback: (token) => {
+            setStatus("Security check passed. Sending the file change…");
+            hideSecurityCheck();
+            setBrowserLoading(true, browserMutationLoadingLabel, true);
+            finish(token);
+          },
+          "error-callback": () => fail("The security check failed. Try the file change again."),
+          "expired-callback": () => fail("The security check expired. Try the file change again."),
+          "timeout-callback": () => fail("The security check timed out. Try the file change again."),
+          "unsupported-callback": () => fail("This browser cannot run the security check.")
+        });
+        return { api, id: widgetId };
+      }).catch((error) => {
+        widgetPromise = undefined;
+        throw error;
+      });
+    }
+    return widgetPromise;
+  }
+
+  function finish(token) {
+    if (!pending) return;
+    const current = pending;
+    pending = undefined;
+    clearTimeout(current.timeout);
+    hideSecurityCheck();
+    current.resolve(token);
+  }
+
+  function fail(message) {
+    if (!pending) return;
+    const current = pending;
+    pending = undefined;
+    clearTimeout(current.timeout);
+    hideSecurityCheck();
+    setBrowserLoading(false);
+    current.reject(new Error(message));
+  }
+
+  return async () => {
+    if (pending) throw new Error("A security check is already in progress.");
+    setBrowserLoading(true, "Checking security…");
+    let widget;
+    try {
+      widget = await getWidget();
+    } catch (error) {
+      hideSecurityCheck();
+      setBrowserLoading(false);
+      throw error;
+    }
+    return new Promise((resolve, reject) => {
+      if (pending) {
+        reject(new Error("A security check is already in progress."));
+        return;
+      }
+      const timeout = setTimeout(() => fail("The security check took too long. Try the file change again."), 120_000);
+      pending = {
+        resolve: (token) => resolve({ token, reset: () => widget.api.reset(widget.id) }),
+        reject,
+        timeout
+      };
+      setStatus("Completing the security check…");
+      try { widget.api.execute(widget.id); }
+      catch { fail("The security check could not start. Try the file change again."); }
+    });
+  };
+}
+
+function setReady(ready) {
+  for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
+  for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
+  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), previousPage, nextPage,
+    document.querySelector("#refresh"), apiMode, apiOriginInput, apiForm.querySelector("button[type=submit]"),
+    ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) control.disabled = mutationBusy;
+  closeButton.disabled = mutationBusy;
+  undoButton.disabled = mutationBusy || !demoWritesEnabled;
 }
 
 function syncApiMode() {
@@ -328,7 +613,10 @@ document.querySelector("#refresh").addEventListener("click", () => {
 async function mutateEntry(button) {
   const operation = button.dataset.action;
   const source = button.closest("tr").dataset.path;
-  if (operation === "move") { moveSource = source; moveDestination = parentPath(source); moveDialog.showModal(); await loadMoveFolders(moveDestination, 1); return; }
+  if (operation === "move") {
+    moveSource = source; moveDestination = parentPath(source);
+    moveDialog.showModal(); await loadMoveFolders(moveDestination, 1); return;
+  }
   let destination = null;
   if (operation === "delete") {
     if (!window.confirm(`Permanently delete "${source}" and all its contents?`)) return;
@@ -338,6 +626,7 @@ async function mutateEntry(button) {
   }
   mutationBusy = true;
   setReady(false);
+  browserMutationLoadingLabel = `${button.textContent} in progress…`;
   setStatus(`Working: ${operation}…`);
   await measure(operation, () => changeEntry(operation, source, destination));
   const error = status.classList.contains("error") ? status.textContent : null;
@@ -345,6 +634,7 @@ async function mutateEntry(button) {
   snapshot = undefined;
   await loadEntries();
   if (error) setStatus(error, true);
+  if (error) setBrowserLoading(false);
 }
 
 function suggestedCopyPath(source) {
@@ -357,17 +647,25 @@ function suggestedCopyPath(source) {
 }
 
 async function loadMoveFolders(path, page) {
-  const version = ++moveVersion; moveDestination = path; movePage = Math.max(1, page); moveStatus.textContent = "Loading folders…";
+  const version = ++moveVersion; moveDestination = path; movePage = Math.max(1, page);
+  setMoveLoading(true);
+  moveStatus.textContent = "Loading folders…"; renderBreadcrumbs(moveCrumbs, path); moveFolders.replaceChildren();
   document.querySelector("#move-submit").disabled = !validDrop(moveSource, path);
-  renderBreadcrumbs(moveCrumbs, path); moveFolders.replaceChildren();
   try {
     const result = await fetchEntries({ path, query: "", sort: "name", direction: "asc", page: movePage }, undefined);
     if (version !== moveVersion || !moveDialog.open) return;
-    movePage = result.page; movePages = result.totalPages; renderMoveFolders(moveFolders, result.entries);
-    document.querySelector("#move-page").textContent = `Page ${movePage} of ${movePages}`;
-    document.querySelector("#move-previous").disabled = movePage <= 1; document.querySelector("#move-next").disabled = movePage >= movePages;
+    movePage = result.page; renderMoveFolders(moveFolders, result.entries);
+    document.querySelector("#move-page").textContent = `Page ${result.page} of ${result.totalPages}`;
+    document.querySelector("#move-previous").disabled = result.page <= 1;
+    document.querySelector("#move-next").disabled = result.page >= result.totalPages;
     moveStatus.textContent = result.entries.some(entry => entry.kind === "folder") ? "Choose a folder or move here." : "No folders on this page. Use the page controls to continue.";
-  } catch (error) { if (version === moveVersion) moveStatus.textContent = error.message; }
+    setMoveLoading(false);
+  } catch (error) {
+    if (version === moveVersion) {
+      moveStatus.textContent = error.message;
+      setMoveLoading(false);
+    }
+  }
 }
 
 function closeMovePicker() { if (moveDialog.open) moveDialog.close(); }
@@ -377,23 +675,20 @@ function validDrop(source, folder) { return Boolean(source) && folder !== source
 function clearDrag() { draggedPath = undefined; entries.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); breadcrumbs.querySelectorAll(".drop-target").forEach(item => item.classList.remove("drop-target")); }
 
 async function executeMove(source, destination, isUndo = false) {
-  if (mutationBusy || !validDrop(source, parentPath(destination))) return;
-  mutationBusy = true; setReady(false); setStatus("Moving…");
+  if (mutationBusy || !demoWritesEnabled || !validDrop(source, parentPath(destination))) return;
+  mutationBusy = true; setReady(false);
+  browserMutationLoadingLabel = isUndo ? "Undoing move…" : "Moving…";
+  setBrowserLoading(false);
+  setStatus(isUndo ? "Undoing move…" : "Moving…");
   let succeeded = false;
   await measure("move", async () => { await changeEntry("move", source, destination); succeeded = true; });
-  const failed = status.classList.contains("error");
-  mutationBusy = false; snapshot = undefined;
+  const failed = status.classList.contains("error"); mutationBusy = false; snapshot = undefined;
   if (succeeded && !failed) {
-    if (isUndo) {
-      undoMove = undefined;
-      undoButton.hidden = true;
-    } else {
-      undoMove = { source, destination };
-      undoButton.hidden = false;
-    }
+    if (isUndo) { undoMove = undefined; undoButton.hidden = true; }
+    else { undoMove = { source, destination }; undoButton.hidden = false; }
     await loadEntries();
     setStatus(isUndo ? `Move undone. Returned ${source} to ${destination}.` : `Moved ${source} to ${destination}.`);
-  }
-  else if (!failed) { await loadEntries(); setStatus("Move outcome is uncertain. Check the listing before retrying.", true); }
+  } else if (!failed) { await loadEntries(); setStatus("Move outcome is uncertain. Check the listing before retrying.", true); }
+  if (failed) setBrowserLoading(false);
   setReady(viewReady);
 }

@@ -1,25 +1,44 @@
+import { deployment } from "./deployment.js";
+
 const apiOriginKey = "fileBrowser.apiOrigin";
+const sameOriginSetting = "same-origin";
+const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
+let mutationTokenProvider;
+let mutationRequestListener;
+
+function defaultApiOrigin() {
+  return deployment.apiOrigin;
+}
 
 export function getApiOrigin() {
   let value;
   try {
     value = localStorage.getItem(apiOriginKey);
   } catch {
-    return "";
+    return defaultApiOrigin();
   }
-  try { return normalizeApiOrigin(value ?? ""); }
-  catch { return ""; }
+  if (value === sameOriginSetting) return "";
+  try { return normalizeApiOrigin(value || defaultApiOrigin()); }
+  catch { return defaultApiOrigin(); }
 }
 
 export function setApiOrigin(value) {
   const normalized = normalizeApiOrigin(value);
   try {
     if (normalized) localStorage.setItem(apiOriginKey, normalized);
-    else localStorage.removeItem(apiOriginKey);
+    else localStorage.setItem(apiOriginKey, sameOriginSetting);
   } catch {
     throw new Error("This browser could not save the backend choice. Allow local storage for this site and try again.");
   }
   return normalized;
+}
+
+export function setMutationTokenProvider(provider) {
+  mutationTokenProvider = provider;
+}
+
+export function setMutationRequestListener(listener) {
+  mutationRequestListener = listener;
 }
 
 export function apiUrl(path) {
@@ -30,7 +49,13 @@ export function apiUrl(path) {
 export async function getConfig() {
   const response = await fetch(apiUrl("config"));
   if (!response.ok) throw new Error("Could not load browser configuration.");
-  return response.json();
+  const config = await response.json();
+  const selectedOrigin = getApiOrigin() || window.location.origin;
+  if (selectedOrigin === renderApiOrigin) {
+    const demoResponse = await fetch(apiUrl("demo-config"));
+    if (demoResponse.ok) config.demo = await demoResponse.json();
+  }
+  return config;
 }
 
 export async function fetchEntries(state, signal, snapshot) {
@@ -71,13 +96,33 @@ function normalizeApiOrigin(value) {
 }
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options);
-  const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("json") ? await response.json() : null;
-  if (!response.ok) {
-    const error = new Error(payload?.detail || `Request failed (${response.status}).`);
-    error.title = payload?.title;
-    throw error;
+  let proof;
+  let mutationRequestStarted = false;
+  try {
+    if (options.method && options.method.toUpperCase() !== "GET" && mutationTokenProvider) {
+      proof = await mutationTokenProvider();
+      options = {
+        ...options,
+        headers: { ...options.headers, "X-Turnstile-Token": proof.token }
+      };
+    }
+
+    if (options.method && options.method.toUpperCase() !== "GET") {
+      mutationRequestStarted = true;
+      mutationRequestListener?.(true);
+    }
+    const response = await fetch(url, options);
+    const contentType = response.headers.get("content-type") ?? "";
+    const payload = contentType.includes("json") ? await response.json() : null;
+    if (!response.ok) {
+      const error = new Error(payload?.detail || `Request failed (${response.status}).`);
+      error.title = payload?.title;
+      throw error;
+    }
+    return payload;
+  } finally {
+    if (mutationRequestStarted) mutationRequestListener?.(false);
+    try { proof?.reset?.(); }
+    catch { /* A failed widget reset must not hide the API result. */ }
   }
-  return payload;
 }

@@ -59,6 +59,10 @@ Upload experiments can tune `FileBrowser:UploadCopyBufferBytes` (default 65,536)
 
 The sibling [`performance/`](../performance/README.md) folder contains a k6 upload harness that starts a local Release instance with an isolated disposable root, rejects remote targets, measures the public upload endpoint, and verifies one upload/download hash outside the measured workload. Harness files are not compiled or referenced by the application.
 
+## Deployment modes
+
+Local runs use the same-origin profile in `wwwroot/js/deployment.js`. Pages and Render replace that file with `RenderDemo/frontend-deployment.js` during packaging. Render-only proxy controls remain outside the application project. See [deployment modes](docs/DEPLOYMENT_MODES.md).
+
 ## Backend connection
 
 The dialog's **Backend connection** setting can target this site's API or a custom server origin. The selected origin is stored in the browser's local storage. A cross-origin API must allow the exact page origin through `Cors:AllowedOrigins` (or `Cors__AllowedOrigins__0`). CORS controls browser access; it is not authentication. The app remains a local single-user demo and must use a disposable data root when hosted publicly.
@@ -94,7 +98,7 @@ The app is a local, single-user interview exercise without authentication, file-
 
 ## Browser regression tests
 
-The optional `browser-tests/` package uses Playwright only for testing; the application still has no frontend dependencies or build step. It starts its own Release server on loopback port 5187 with an isolated generated temporary root and removes that fixture after the run. It does not reuse an existing server or touch `SampleFiles`.
+The optional `browser-tests/` package uses Playwright only for testing; the application still has no frontend runtime dependencies or build step. It starts its own Release server on loopback port 5187 with an isolated generated temporary root and removes that fixture after the run. It does not reuse an existing server or touch `SampleFiles`.
 
 ```sh
 dotnet build TestProject.sln -c Release
@@ -106,7 +110,7 @@ npm test
 
 The browser suite executes deep-link restore/reload, Back/Forward, Escape/focus, stale-view handling, obsolete search cancellation, upload/download byte integrity, copy/move/delete controls and delete cancellation, and snapshot paging/refresh. It also prints five-sample median browse/search scan and snapshot-page durations for an isolated 6,000-file fixture. These are bounded local observations, not a production performance guarantee. The separate k6 harness measures uploads.
 
-Verification on November 1, 2026 (macOS arm64): 57/57 backend tests and 7/7 Chromium tests passed. Formatting and JavaScript lint passed. The recommended .NET analyzer build and CSS lint also passed after the review fixes. The local project is the primary interview deliverable; the hosted demo provides the same core file operations with additional deployment controls. See the [current review](docs/FINAL_REVIEW_2026-11-01.md) for the feature comparison, exact checks, and remaining deployment limits. The local validation workflow runs backend tests and analyzers, formatting, JavaScript/CSS lint, and Chromium regressions on pushes and pull requests. Its first hosted run is pending. Earlier performance measurements and their limitations are recorded in the [October 31 review](docs/FINAL_REVIEW.md). Windows ACL behavior and other browsers have not been verified.
+Verification on November 1, 2026 (macOS arm64): 57/57 backend tests and 10/10 Chromium tests passed. Formatting and JavaScript lint passed. The recommended .NET analyzer build and CSS lint also passed after the review fixes. The local project is the primary interview deliverable. Both deployments now use the same application on `main`; [deployment profiles](docs/DEPLOYMENT_MODES.md) select the API and demo presentation during packaging. See the [current review](docs/FINAL_REVIEW_2026-11-01.md) for the feature comparison, exact checks, and remaining deployment limits. The local validation workflow runs backend tests and analyzers, formatting, JavaScript/CSS lint, and Chromium regressions on pushes and pull requests. Pages calls this validation workflow before publishing. The new unified deployment change still requires its first hosted run. Earlier performance measurements and their limitations are recorded in the [October 31 review](docs/FINAL_REVIEW.md). Windows ACL behavior and other browsers have not been verified.
 
 ## Native filesystem checks
 

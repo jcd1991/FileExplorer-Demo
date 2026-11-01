@@ -1,5 +1,7 @@
 # Final Review: November 1, 2026
 
+This report records the earlier two-version review. The subsequent [deployment-mode consolidation](DEPLOYMENT_MODES.md) supersedes its separate-source and pending-pipeline notes; it retains the original evidence for traceability.
+
 ## Scope and outcome
 
 The local project is the primary interview deliverable. The hosted demo is a separate deployment with the same core file-browser capabilities and additional public-hosting controls. Source equality is not a release requirement.

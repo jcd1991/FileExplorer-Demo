@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: file-browser-interview-demo
+    name: file-explorer-demo-api
     runtime: docker
     plan: free
     dockerfilePath: RenderDemo/Dockerfile
@@ -9,9 +9,17 @@ services:
     envVars:
       - key: FileBrowser__RootPath
         value: /app/demo-files
+      - key: FileBrowser__MaxUploadBytes
+        value: "104857600"
       - key: FileBrowser__MaxConcurrentUploads
         value: "1"
       - key: FileBrowser__SnapshotCacheMaxViews
         value: "4"
       - key: FileBrowser__SnapshotCacheMaxBytes
         value: "16777216"
+      - key: Cors__AllowedOrigins__0
+        value: https://jcd1991.github.io
+      - key: Turnstile__SiteKey
+        sync: false
+      - key: Turnstile__SecretKey
+        sync: false

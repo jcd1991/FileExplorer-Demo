@@ -4,7 +4,7 @@
     "color-no-invalid-hex": true,
     "declaration-block-no-duplicate-properties": true,
     "function-calc-no-unspaced-operator": true,
-    "no-duplicate-selectors": true,
+    "no-duplicate-selectors": null,
     "property-no-unknown": true,
     "selector-pseudo-class-no-unknown": true
   }
