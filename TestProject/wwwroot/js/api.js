@@ -2,6 +2,7 @@ const apiOriginKey = "fileBrowser.apiOrigin";
 const sameOriginSetting = "same-origin";
 const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
 let mutationTokenProvider;
+let mutationRequestListener;
 
 function defaultApiOrigin() {
   return window.location.hostname === "jcd1991.github.io" ? renderApiOrigin : "";
@@ -32,6 +33,10 @@ export function setApiOrigin(value) {
 
 export function setMutationTokenProvider(provider) {
   mutationTokenProvider = provider;
+}
+
+export function setMutationRequestListener(listener) {
+  mutationRequestListener = listener;
 }
 
 export function apiUrl(path) {
@@ -90,6 +95,7 @@ function normalizeApiOrigin(value) {
 
 async function request(url, options = {}) {
   let proof;
+  let mutationRequestStarted = false;
   try {
     if (options.method && options.method.toUpperCase() !== "GET" && mutationTokenProvider) {
       proof = await mutationTokenProvider();
@@ -99,6 +105,10 @@ async function request(url, options = {}) {
       };
     }
 
+    if (options.method && options.method.toUpperCase() !== "GET") {
+      mutationRequestStarted = true;
+      mutationRequestListener?.(true);
+    }
     const response = await fetch(url, options);
     const contentType = response.headers.get("content-type") ?? "";
     const payload = contentType.includes("json") ? await response.json() : null;
@@ -109,6 +119,7 @@ async function request(url, options = {}) {
     }
     return payload;
   } finally {
+    if (mutationRequestStarted) mutationRequestListener?.(false);
     try { proof?.reset?.(); }
     catch { /* A failed widget reset must not hide the API result. */ }
   }

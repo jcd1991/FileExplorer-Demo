@@ -1,4 +1,4 @@
-import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationTokenProvider, uploadFile } from "./api.js";
+import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-10";
 import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
@@ -54,6 +54,8 @@ let mutationBusy = false;
 let viewReady = false;
 let browserLoadingTimer;
 let moveLoadingTimer;
+let browserMutationLoadingLabel = "Applying file change…";
+setMutationRequestListener((active) => setBrowserLoading(active, browserMutationLoadingLabel));
 const initialBackendOrigin = getApiOrigin() || window.location.origin;
 let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
 let configurationReady = false;
@@ -235,6 +237,7 @@ uploadForm.addEventListener("submit", async (event) => {
   if (!file || mutationBusy || !viewReady) return;
   mutationBusy = true;
   setReady(false);
+  browserMutationLoadingLabel = "Uploading…";
   setStatus("Uploading…");
   const result = await measure("upload", () => uploadFile(state.path, file));
   mutationBusy = false;
@@ -589,7 +592,7 @@ async function mutateEntry(button) {
   }
   mutationBusy = true;
   setReady(false);
-  setBrowserLoading(true, `${button.textContent} in progress…`);
+  browserMutationLoadingLabel = `${button.textContent} in progress…`;
   setStatus(`Working: ${operation}…`);
   await measure(operation, () => changeEntry(operation, source, destination));
   const error = status.classList.contains("error") ? status.textContent : null;
@@ -630,7 +633,10 @@ function clearDrag() { draggedPath = undefined; entries.querySelectorAll(".drop-
 
 async function executeMove(source, destination, isUndo = false) {
   if (mutationBusy || !demoWritesEnabled || !validDrop(source, parentPath(destination))) return;
-  mutationBusy = true; setReady(false); setBrowserLoading(true, isUndo ? "Undoing move…" : "Moving…"); setStatus("Moving…");
+  mutationBusy = true; setReady(false);
+  browserMutationLoadingLabel = isUndo ? "Undoing move…" : "Moving…";
+  setBrowserLoading(false);
+  setStatus(isUndo ? "Undoing move…" : "Moving…");
   let succeeded = false;
   await measure("move", async () => { await changeEntry("move", source, destination); succeeded = true; });
   const failed = status.classList.contains("error"); mutationBusy = false; snapshot = undefined;

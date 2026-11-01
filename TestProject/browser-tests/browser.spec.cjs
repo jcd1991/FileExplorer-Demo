@@ -54,16 +54,19 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
   const chunks = [];
   for await (const chunk of await download.createReadStream()) chunks.push(chunk);
   expect(Buffer.concat(chunks).toString()).toBe('browser transfer bytes');
+  await row.locator('summary').click();
   page.once('dialog', dialog => dialog.accept('Alpha/copied.txt'));
   await row.getByRole('button', { name: 'Copy browser.txt', exact: true }).click();
   row = page.locator('tr[data-path="Alpha/copied.txt"]');
   await expect(row).toBeVisible();
+  await row.locator('summary').click();
   await row.getByRole('button', { name: 'Move copied.txt', exact: true }).click();
   await page.locator('#move-breadcrumbs').getByRole('button', { name: 'Root', exact: true }).click();
   await page.locator('#move-submit').click();
   await page.locator('#breadcrumbs').getByRole('button', { name: 'Root', exact: true }).click();
   row = page.locator('tr[data-path="copied.txt"]');
   await expect(row).toBeVisible();
+  await row.locator('summary').click();
   page.once('dialog', dialog => dialog.dismiss());
   await row.getByRole('button', { name: 'Delete copied.txt', exact: true }).click();
   await expect(row).toBeVisible();
@@ -75,14 +78,43 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
 });
 
 test('drag and drop moves entries and Undo restores the previous path', async ({ page }) => {
+  await page.route('**/api/config', async route => {
+    const response = await route.fetch();
+    const config = await response.json();
+    config.demo = {
+      uploadLimitMiB: 100, requestBurst: 30, requestRefillCount: 30, requestRefillSeconds: 30,
+      maxConcurrentRequests: 4, creationsPerWindow: 2, creationWindowMinutes: 5,
+      mutationsPerWindow: 20, idleSleepMinutes: 15, turnstileReady: true,
+      turnstileSiteKey: 'test-site-key'
+    };
+    await route.fulfill({ response, json: config });
+  });
+  await page.addInitScript(() => {
+    let callbacks;
+    globalThis.window.turnstile = {
+      render(_container, options) { callbacks = options; return 'test-widget'; },
+      execute() { setTimeout(() => callbacks.callback('test-token'), 600); },
+      reset() {}
+    };
+  });
+  await page.route('**/api/files/move', async route => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await route.continue();
+  });
   await page.goto('/?open=1');
   await expect(page.locator('.drag-hint')).toContainText('Drag a file or folder');
   await page.locator('#upload-file').setInputFiles({ name: 'drag-me.txt', mimeType: 'text/plain', buffer: Buffer.from('drag bytes') });
   await page.getByRole('button', { name: 'Upload', exact: true }).click();
   const source = page.locator('tr[data-path="drag-me.txt"]');
   await source.locator('.file-name').dragTo(page.locator('tr[data-path="Alpha"] .entry-name'));
+  await expect(page.locator('#status')).toContainText('Completing the security check');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#browser-loading-mask')).toBeHidden();
   await expect(page.locator('#status')).toContainText('Moved drag-me.txt to Alpha/drag-me.txt.');
   await page.getByRole('button', { name: 'Undo move' }).click();
+  await expect(page.locator('#status')).toContainText('Completing the security check');
+  await page.waitForTimeout(300);
+  await expect(page.locator('#browser-loading-mask')).toBeHidden();
   await expect(page.locator('#status')).toContainText('Move undone. Returned Alpha/drag-me.txt to drag-me.txt.');
   await expect(page.locator('tr[data-path="drag-me.txt"]')).toBeVisible();
 });
