@@ -1,44 +1,10 @@
-# File Browser Interview Project
+# File Browser
 
 A small ASP.NET Core and vanilla JavaScript proof of concept for browsing a configured server directory. The browser UI is rendered in the client from JSON. Application logic is original; native interop declarations follow the platform ABI references linked below.
 
-New to the codebase? Take the [guided project tour](docs/PROJECT_GUIDE.md) for an architecture map, request walkthroughs, file-by-file guide, and implementation trade-offs.
+See the [architecture and implementation guide](docs/PROJECT_GUIDE.md) for module responsibilities, request lifecycles, and design trade-offs.
 
-## Original interview requirements
-
-- **Buildable project:** .NET 8 SDK solution with no frontend build step. Build and test with `dotnet build TestProject.sln -c Release` and `dotnet test TestProject.sln -c Release`. Use Visual Studio 2022 17.8+ with the .NET 8 targeting pack, Rider, VS Code, or CLI SDK tools. This delivery was verified using the .NET CLI on macOS arm64.
-- **Configurable server home:** `FileBrowser:RootPath`, overridden by `FileBrowser__RootPath`. Relative paths resolve from the application content root. The default is `SampleFiles`; the configured directory must exist and must be outside `wwwroot`.
-- **JSON browse/search:** `GET /api/files/browse` lists immediate children. `GET /api/files/search` searches names recursively under the requested root-relative `path`. Search is case-insensitive and never reads file contents.
-- **Deep links:** `/?open=1&path=Reports%2F2026&q=budget&sort=name&direction=asc&page=1`. URL state restores the dialog, current folder, query, sort, direction, and page after refresh and browser history navigation.
-- **Client-rendered SPA:** static HTML, CSS, and JavaScript ES modules using native DOM APIs and `fetch`. No React, Angular, UI library, or server-rendered application UI.
-- **Upload/download:** upload one file per request through `POST /api/files/upload?path=...`, multipart field `file`; download using `GET /api/files/download?path=...`. Uploads stream to a temporary file, are limited to 100 MiB, reject name conflicts, and are atomically moved into place after completion. Downloads stream with byte-range support.
-- **Current-view totals:** the response summary counts all matching entries before paging and reports file count, folder count, and aggregate bytes for regular files. Browse counts immediate children; search counts matches found. File rows show their byte size. Folder rows say that size is not calculated; recursive folder sizes are intentionally outside this proof of concept. See the [refined acceptance criteria](docs/REQUIREMENTS.md) for the exact interpretation.
-
-Paging reuses an opaque `snapshotId` from the first browse/search response: pass it back as `snapshot` with the same path/query/sort/direction to avoid rescanning and resorting. The server retains up to 16 views by default, each with at most 100,000 entries, subject to a 64 MiB estimated-retention budget and a two-minute lifetime. `FileBrowser:SnapshotCacheMaxViews` and `FileBrowser:SnapshotCacheMaxBytes` configure those limits. Expired or evicted tokens return 409 and the client transparently refreshes. Snapshots freeze results and totals, including partial searches, across pages. Changing the view, uploading, or performing an operation requests a fresh snapshot; external changes appear on Refresh. Snapshot tokens are transient and are not stored in deep links, so refreshing a URL requests current filesystem data. This small cache addresses measured repeat-paging work; it is not an index or a filesystem watcher.
-
-The response entries use `path` (root-relative, `/` separators), `name`, `kind`, `sizeBytes`, and `modifiedUtc`. Responses also contain `page`, `pageSize`, `totalPages`, `summary`, `partial`, and coded `warnings`. Errors use Problem Details and avoid exposing physical server paths.
-
-## Selected bonuses
-
-The entire browser is in a native `<dialog>` opened by a trigger button. Escape and the close button close it and return focus to the trigger. Deep links with `open=1` open the dialog automatically. Search is debounced, obsolete requests are aborted, and rendering is bounded by pagination. Loading or failed navigation clears stale rows, totals, and pagination and disables uploads until the requested view succeeds. A Refresh button explicitly reloads the filesystem.
-
-Delete, move, and copy work for both files and folders using the row action buttons. Delete asks for confirmation; Move opens a paged folder picker and preserves the entry name. Drag a listed entry onto a folder or breadcrumb to move it directly. The picker and Move button provide keyboard and touch access. After a successful move, **Undo move** returns the entry to its prior path. Undo uses the same server checks and can fail if the original path is occupied or unavailable. Existing entries are never overwritten. Ancestor checks compare filesystem identities as well as paths, so alternate Unicode/case/short-name spellings cannot place a folder inside itself. The configured root, traversal paths, symbolic links, and destinations within the source are rejected.
-
-`POST /api/files/delete`, `/move`, and `/copy` accept JSON `{ "source": "Reports/old.txt", "destination": "Reports/new.txt" }`; delete omits destination. Operations preflight trees iteratively with a 10,000-entry / five-second limit. Copy caps total bytes at 1 GiB, streams into a hidden staging entry, then publishes by rename. Failed or cancelled copies attempt to clean their staged entries; a cleanup failure emits a warning. Mutations serialize with each other; uploads remain independent. Delete is permanent and can partially complete if permissions, cancellation, or external filesystem changes interrupt it. Refresh before retrying a failed delete. These operations retain the local single-user filesystem-race limitation described below.
-
-## Additional engineering and tooling
-
-Project instructions in `AGENTS.md` require KISS, DRY, pragmatic SOLID, YAGNI, and adapted NASA Power of 10 rules. They apply to implementation and review; the NASA rules are adaptations, not a compliance claim.
-
-Optional structured diagnostics use built-in `ILogger`. Enable them with `Diagnostics:Enabled=true` or `Diagnostics__Enabled=true` and restart the process. The browser fetches `/api/config` and emits operation durations and outcomes via `console.debug` only when enabled. Server diagnostics cover browse, search, upload, download preparation, and rejected paths with a correlation ID, elapsed time, outcome, counts, and bytes. `download-prepare` records preparation only, with outcome `prepared` and zero bytes; it does not measure transfer completion or bytes delivered. They do not log paths, names, or file contents. To profile browse/search phases and cache accounting locally, set `Logging__LogLevel__TestProject.Services.FileSystemService=Debug`; those detailed logs are disabled at the default Information level. Ordinary warning/error logs, including temporary-upload cleanup failures, remain enabled.
-
-Uploads accept exactly one multipart section named `file`, with no extra fields. File data is capped at 100 MiB; parser reads and the server request-body limit are capped at 101 MiB including multipart overhead, even without `Content-Length`. Failed uploads are cleaned up; a cleanup failure emits a warning without filesystem details. Tests use a separate temporary root per test and do not mutate process environment variables.
-
-Upload experiments can tune `FileBrowser:UploadCopyBufferBytes` (default 65,536), `FileBrowser:UploadStreamBufferBytes` (default 4,096; `1` requests no extra `FileStream` buffer), and `FileBrowser:MaxConcurrentUploads` (default `0`, unlimited). The local repeated p95 follow-up did not establish a general win for disabling the stream buffer, so these defaults remain unchanged.
-
-The sibling [`performance/`](../performance/README.md) folder contains a k6 upload harness that starts a local Release instance with an isolated disposable root, rejects remote targets, measures the public upload endpoint, and verifies one upload/download hash outside the measured workload. Harness files are not compiled or referenced by the application.
-
-## Run the application
+## Build and run
 
 Prerequisites: .NET 8 SDK.
 
@@ -57,6 +23,41 @@ FileBrowser__RootPath="/absolute/path/to/demo-files" dotnet run --project TestPr
 ```
 
 The configured root must already exist. Do not point it at `wwwroot`. The application rejects rooted/traversing request paths and skips symbolic links/reparse points. Only regular files and directories are supported. Named pipes, sockets, and devices are omitted with an `unsupported-entry-skipped` warning; downloads and mutations reject unsupported entries before reading or changing them. Search inspects at most 100,000 entries and five seconds, iteratively; inaccessible directories and truncated searches are reported. Browse caps enumeration at 100,000 entries. Page size defaults to 100 and is capped at 500.
+
+
+## Requirements and implementation
+
+- **Buildable project:** .NET 8 SDK solution with no frontend build step. Build and test with `dotnet build TestProject.sln -c Release` and `dotnet test TestProject.sln -c Release`. Use Visual Studio 2022 17.8+ with the .NET 8 targeting pack, Rider, VS Code, or CLI SDK tools. This delivery was verified using the .NET CLI on macOS arm64.
+- **Configurable server home:** `FileBrowser:RootPath`, overridden by `FileBrowser__RootPath`. Relative paths resolve from the application content root. The default is `SampleFiles`; the configured directory must exist and must be outside `wwwroot`.
+- **JSON browse/search:** `GET /api/files/browse` lists immediate children. `GET /api/files/search` searches names recursively under the requested root-relative `path`. Search is case-insensitive and never reads file contents.
+- **Deep links:** `/?open=1&path=Reports%2F2026&q=budget&sort=name&direction=asc&page=1`. URL state restores the dialog, current folder, query, sort, direction, and page after refresh and browser history navigation.
+- **Client-rendered SPA:** static HTML, CSS, and JavaScript ES modules using native DOM APIs and `fetch`. No React, Angular, UI library, or server-rendered application UI.
+- **Upload/download:** upload one file per request through `POST /api/files/upload?path=...`, multipart field `file`; download using `GET /api/files/download?path=...`. Uploads stream to a temporary file, are limited to 100 MiB, reject name conflicts, and are atomically moved into place after completion. Downloads stream with byte-range support.
+- **Current-view totals:** the response summary counts all matching entries before paging and reports file count, folder count, and aggregate bytes for regular files. Browse counts immediate children; search counts matches found. File rows show their byte size. Folder rows say that size is not calculated; recursive folder sizes are intentionally outside this proof of concept. See the [refined acceptance criteria](docs/REQUIREMENTS.md) for the exact interpretation.
+
+Paging reuses an opaque `snapshotId` from the first browse/search response: pass it back as `snapshot` with the same path/query/sort/direction to avoid rescanning and resorting. The server retains up to 16 views by default, each with at most 100,000 entries, subject to a 64 MiB estimated-retention budget and a two-minute lifetime. `FileBrowser:SnapshotCacheMaxViews` and `FileBrowser:SnapshotCacheMaxBytes` configure those limits. Expired or evicted tokens return 409 and the client transparently refreshes. Snapshots freeze results and totals, including partial searches, across pages. Changing the view, uploading, or performing an operation requests a fresh snapshot; external changes appear on Refresh. Snapshot tokens are transient and are not stored in deep links, so refreshing a URL requests current filesystem data. This small cache addresses measured repeat-paging work; it is not an index or a filesystem watcher.
+
+The response entries use `path` (root-relative, `/` separators), `name`, `kind`, `sizeBytes`, and `modifiedUtc`. Responses also contain `page`, `pageSize`, `totalPages`, `summary`, `partial`, and coded `warnings`. Errors use Problem Details and avoid exposing physical server paths.
+
+## Additional functionality
+
+The entire browser is in a native `<dialog>` opened by a trigger button. Escape and the close button close it and return focus to the trigger. Deep links with `open=1` open the dialog automatically. Search is debounced, obsolete requests are aborted, and rendering is bounded by pagination. Loading or failed navigation clears stale rows, totals, and pagination and disables uploads until the requested view succeeds. A Refresh button explicitly reloads the filesystem.
+
+Delete, move, and copy work for both files and folders using the row action buttons. Delete asks for confirmation; Move opens a paged folder picker and preserves the entry name. Drag a listed entry onto a folder or breadcrumb to move it directly. The picker and Move button provide keyboard and touch access. After a successful move, **Undo move** returns the entry to its prior path. Undo uses the same server checks and can fail if the original path is occupied or unavailable. Existing entries are never overwritten. Ancestor checks compare filesystem identities as well as paths, so alternate Unicode/case/short-name spellings cannot place a folder inside itself. The configured root, traversal paths, symbolic links, and destinations within the source are rejected.
+
+`POST /api/files/delete`, `/move`, and `/copy` accept JSON `{ "source": "Reports/old.txt", "destination": "Reports/new.txt" }`; delete omits destination. Operations preflight trees iteratively with a 10,000-entry / five-second limit. Copy caps total bytes at 1 GiB, streams into a hidden staging entry, then publishes by rename. Failed or cancelled copies attempt to clean their staged entries; a cleanup failure emits a warning. Mutations serialize with each other; uploads remain independent. Delete is permanent and can partially complete if permissions, cancellation, or external filesystem changes interrupt it. Refresh before retrying a failed delete. These operations retain the local single-user filesystem-race limitation described below.
+
+## Engineering practices and diagnostics
+
+Project instructions in `AGENTS.md` require KISS, DRY, pragmatic SOLID, YAGNI, and adapted NASA Power of 10 rules. They apply to implementation and review; the NASA rules are adaptations, not a compliance claim.
+
+Optional structured diagnostics use built-in `ILogger`. Enable them with `Diagnostics:Enabled=true` or `Diagnostics__Enabled=true` and restart the process. The browser fetches `/api/config` and emits operation durations and outcomes via `console.debug` only when enabled. Server diagnostics cover browse, search, upload, download preparation, and rejected paths with a correlation ID, elapsed time, outcome, counts, and bytes. `download-prepare` records preparation only, with outcome `prepared` and zero bytes; it does not measure transfer completion or bytes delivered. They do not log paths, names, or file contents. To profile browse/search phases and cache accounting locally, set `Logging__LogLevel__TestProject.Services.FileSystemService=Debug`; those detailed logs are disabled at the default Information level. Ordinary warning/error logs, including temporary-upload cleanup failures, remain enabled.
+
+Uploads accept exactly one multipart section named `file`, with no extra fields. File data is capped at 100 MiB; parser reads and the server request-body limit are capped at 101 MiB including multipart overhead, even without `Content-Length`. Failed uploads are cleaned up; a cleanup failure emits a warning without filesystem details. Tests use a separate temporary root per test and do not mutate process environment variables.
+
+Upload experiments can tune `FileBrowser:UploadCopyBufferBytes` (default 65,536), `FileBrowser:UploadStreamBufferBytes` (default 4,096; `1` requests no extra `FileStream` buffer), and `FileBrowser:MaxConcurrentUploads` (default `0`, unlimited). The local repeated p95 follow-up did not establish a general win for disabling the stream buffer, so these defaults remain unchanged.
+
+The sibling [`performance/`](../performance/README.md) folder contains a k6 upload harness that starts a local Release instance with an isolated disposable root, rejects remote targets, measures the public upload endpoint, and verifies one upload/download hash outside the measured workload. Harness files are not compiled or referenced by the application.
 
 ## Backend connection
 
@@ -91,7 +92,7 @@ Reviewer walkthrough:
 
 The app is a local, single-user interview exercise without authentication, file-content search, recursive folder sizes, indexing, or filesystem change monitoring. Its paging cache is bounded to 16 views by default and a 64 MiB estimated-retention budget, with a two-minute lifetime. Downloads report server-side setup timing rather than full transfer completion; client/k6 timing captures full request duration. Large file performance depends on disk, host, runtime, and the load generator; use `../performance/README.md` for bounded local measurements and do not treat them as a production SLO.
 
-## Executed browser regression tests
+## Browser regression tests
 
 The optional `browser-tests/` package uses Playwright only for testing; the application still has no frontend dependencies or build step. It starts its own Release server on loopback port 5187 with an isolated generated temporary root and removes that fixture after the run. It does not reuse an existing server or touch `SampleFiles`.
 
@@ -105,7 +106,7 @@ npm test
 
 The browser suite executes deep-link restore/reload, Back/Forward, Escape/focus, stale-view handling, obsolete search cancellation, upload/download byte integrity, copy/move/delete controls and delete cancellation, and snapshot paging/refresh. It also prints five-sample median browse/search scan and snapshot-page durations for an isolated 6,000-file fixture. These are bounded local observations, not a production performance guarantee. The separate k6 harness measures uploads.
 
-Latest local verification (2026-10-31, macOS arm64): the Release test run passed 57/57 .NET tests, the browser suite passed 6/6 Chromium tests, `dotnet format --verify-no-changes` passed, and JavaScript syntax checks passed. A three-run scan-only benchmark over 5,000 files and five VUs recorded median run-level client p95s of 65.6 ms for browse and 66.9 ms for search; server scan p95s were 54.0 ms and 55.9 ms. These same-host results are directional, not a production SLO. No Windows ACL or other-browser verification is claimed.
+Verification on November 1, 2026 (macOS arm64): 57/57 backend tests and 7/7 Chromium tests passed. Formatting and JavaScript lint passed. The recommended .NET analyzer build and CSS lint also passed after the review fixes. The local project is the primary interview deliverable; the hosted demo provides the same core file operations with additional deployment controls. See the [current review](docs/FINAL_REVIEW_2026-11-01.md) for the feature comparison, exact checks, and remaining deployment limits. The local validation workflow runs backend tests and analyzers, formatting, JavaScript/CSS lint, and Chromium regressions on pushes and pull requests. Its first hosted run is pending. Earlier performance measurements and their limitations are recorded in the [October 31 review](docs/FINAL_REVIEW.md). Windows ACL behavior and other browsers have not been verified.
 
 ## Native filesystem checks
 

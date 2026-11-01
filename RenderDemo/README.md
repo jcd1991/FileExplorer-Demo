@@ -1,10 +1,10 @@
-# Render Free demo setup
+# Render Demo Deployment
 
 This folder contains the hosting wrapper for the interview project. It stays outside `TestProject/` and outside `TestProject_2026_Review.zip`, so the Render account and deployment setup do not become part of the general code-review package.
 
 The container builds the existing .NET app, but includes only fictional files from `DemoFiles/`. It excludes the project's `SampleFiles/`, test fixtures, build output, and local interview study guide. It has no EventYo credentials, database connection, or production data path.
 
-## Create or sign in to Render
+## Render account prerequisites
 
 Open [Render Dashboard](https://dashboard.render.com/). Sign in or create the free account yourself. If the sign-up flow asks you to enter a password, approve GitHub access, or accept Render's terms, complete those steps directly in the browser.
 
@@ -52,7 +52,7 @@ Use an account API key for CI or local deploy scripts instead of storing a passw
 
 The Blueprint sets a separate root at `/app/demo-files`, one concurrent upload, and a smaller snapshot cache. The static UI hosted separately can connect through its **Backend connection** setting once CORS is configured.
 
-## Connect GitHub Pages later
+## GitHub Pages integration
 
 After the Pages URL is known, add this environment variable to the Render service, using the exact site origin (scheme and host only):
 

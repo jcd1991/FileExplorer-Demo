@@ -1,10 +1,10 @@
-# The File Browser: a guided tour 🧭
+# File Browser Architecture and Implementation
 
-Welcome to the project tour. This guide is for someone opening the code for the first time and moving from the user experience to the implementation and its trade-offs.
+This document describes the application architecture, request lifecycle, implementation decisions, and verification approach.
 
-The project is intentionally small: ASP.NET Core serves a JSON API and static assets; browser-side JavaScript owns application state and renders the UI; the filesystem service owns path checks and disk operations. Start with the map below, then follow one request all the way through.
+The project is intentionally small: ASP.NET Core serves a JSON API and static assets; browser-side JavaScript owns application state and renders the UI; the filesystem service owns path checks and disk operations. The diagrams below show module responsibilities and the request lifecycle.
 
-## The 60-second map
+## Architecture
 
 ```mermaid
 flowchart LR
@@ -24,7 +24,7 @@ flowchart LR
 
 The browser receives the same static shell for every URL. Its query string restores the dialog and current view; API responses supply the data. There is no server-generated file-list HTML and no frontend build step.
 
-## A request from click to disk and back
+## Request lifecycle
 
 Suppose someone opens a folder. The app updates the deep-link state, calls the API module, receives a JSON page, and asks the renderer to replace the visible rows. The same route applies to search and paging, with the API carrying the view details.
 
@@ -53,9 +53,9 @@ sequenceDiagram
 
 The `requestVersion` check in `app.js` matters: aborting an old fetch is helpful, while the version guard also prevents a late response from replacing a newer view. Search is debounced, and requests are aborted when the query or dialog state changes.
 
-## The code tour
+## Source organization
 
-| Part | What it owns | Good first file |
+| Component | Responsibility | Source |
 |---|---|---|
 | Application startup | Configuration, root validation, dependency registration, static-file and controller setup, correlation IDs | [`Program.cs`](../Program.cs) |
 | HTTP boundary | API routes, HTTP status mapping, Problem Details, optional operation diagnostics | [`FilesController.cs`](../Controllers/FilesController.cs) |
@@ -79,7 +79,7 @@ The `requestVersion` check in `app.js` matters: aborting an old fetch is helpful
 
 `FileSystemService` is split across partial-class files by work area. They are one service at runtime: the split keeps browse/search and transfer concerns in the main file, snapshot retention in its own file, and mutation planning in another. The project follows the lightweight design rules in [`AGENTS.md`](../AGENTS.md); the short version is straightforward control flow, bounded work, clear responsibility, and explicit failure handling.
 
-## Four user journeys worth tracing
+## Core operations
 
 ### 1. Browse, search, and page
 
@@ -87,7 +87,7 @@ The `requestVersion` check in `app.js` matters: aborting an old fetch is helpful
 
 Browse reads immediate children. Search walks directories iteratively and matches names case-insensitively; it does not read file contents. Work is capped by entry and elapsed-time limits, and a partial result includes coded warnings. Paging uses an opaque snapshot ID to reuse a consistent result for later pages. The in-memory cache defaults to 16 views with a 64 MiB estimated-retention budget for two minutes. `FileBrowser:SnapshotCacheMaxViews` and `FileBrowser:SnapshotCacheMaxBytes` tune the bounds. An expired or evicted token returns `409 View expired`; the client refreshes and retries once.
 
-### 2. Upload a file without holding it all in memory
+### 2. Streamed upload
 
 The browser sends one multipart `file` field. The controller disables form model binding so ASP.NET does not pre-read the body. `FileSystemService` uses a bounded multipart reader and `UploadReadStream`, copies chunks into a uniquely named temporary file, rejects extra sections and conflicts, then moves the completed file into place. The temporary entry is removed if the upload fails. Request cancellation is passed through the read/write loop.
 
@@ -105,7 +105,7 @@ All three operations pass through `ChangeAsync` in [`FileSystemService.Operation
 
 Move uses a filesystem rename after destination validation. Copy streams regular files into a hidden staging tree and publishes it by moving the stage into the final destination; failed copies clean up created entries where possible. Delete removes the planned entries in reverse order. Destination checks include filesystem identity so alternate path spellings cannot copy or move a folder inside itself. Existing names are not overwritten.
 
-## The test bench
+## Test coverage
 
 Each test layer answers a different question:
 
@@ -135,7 +135,7 @@ All request paths are relative to the configured root and use `/` separators.
 
 API failures use Problem Details and avoid returning physical server paths. Every response gets an `X-Correlation-ID` header for matching a request with server logs.
 
-## How to run and explore
+## Local development
 
 From the project root:
 
@@ -161,8 +161,8 @@ Useful paths to try in a URL:
 
 Optional diagnostics can be enabled with `Diagnostics__Enabled=true`. Browser operation timings go to `console.debug`; server operation timings use structured `ILogger` events. The log data includes operation/outcome, correlation ID, duration, counts, and bytes, but omits file names and physical paths. Restart after changing configuration.
 
-For deeper verification, [`docs/FINAL_REVIEW.md`](FINAL_REVIEW.md) records the final implementation review, and the companion [`performance/README.md`](../../performance/README.md) explains the local k6 harness and p95 experiment reports.
+For deeper verification, [`FINAL_REVIEW.md`](FINAL_REVIEW.md) records the implementation review, and the companion [`performance/README.md`](../../performance/README.md) explains the local k6 harness and p95 experiment reports.
 
-## Project limits to keep in view
+## Limitations
 
 This is an interview proof of concept, not a hardened multi-user file-hosting product. It has no authentication or authorization layer, no file-content search, no recursive folder-size calculation, no indexing or filesystem watcher, and no protection from every race caused by an unrelated process changing the filesystem mid-operation. Delete can partially complete on error. The native metadata boundary targets the documented OS/runtime combinations; review it when retargeting. See the main [README](../README.md) and [final review](FINAL_REVIEW.md) for the fuller limits and verification notes.

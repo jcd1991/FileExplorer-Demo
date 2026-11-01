@@ -1,0 +1,44 @@
+name: Validate local project
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: TestProject
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: TestProject/browser-tests/package-lock.json
+      - name: Backend tests and recommended analyzers
+        run: dotnet test TestProject.sln -c Release -p:EnableNETAnalyzers=true -p:AnalysisLevel=latest-recommended -warnaserror
+      - name: Formatting
+        run: dotnet format TestProject.sln --verify-no-changes --no-restore
+      - name: JavaScript lint
+        run: npx --yes --package eslint@8.57.1 eslint --max-warnings=0 wwwroot/js/*.js
+      - name: CSS lint
+        run: npx --yes --package stylelint@16.26.1 stylelint 'wwwroot/*.css'
+      - name: Install browser test dependencies
+        working-directory: TestProject/browser-tests
+        run: npm ci
+      - name: Install Chromium
+        working-directory: TestProject/browser-tests
+        run: npx playwright install --with-deps chromium
+      - name: Browser regressions
+        working-directory: TestProject/browser-tests
+        run: npm test
