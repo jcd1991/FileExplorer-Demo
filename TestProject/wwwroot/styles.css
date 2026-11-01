@@ -35,7 +35,7 @@ dialog{width:min(1120px,calc(100vw - 2rem));max-width:none;max-height:min(90dvh,
 .breadcrumbs{margin-top:1rem;margin-bottom:.45rem}
 .breadcrumbs button{padding-left:0}
 .summary{min-height:0;margin:.35rem 0 .5rem}
-.status-row{gap:.35rem .6rem;margin:0}
+.status-row{gap:.35rem .6rem;margin:0 0 .7rem}
 .status-row .status{min-height:0;margin:0}
 @media (max-width:719px){.view-toolbar{grid-template-columns:minmax(0,1fr);row-gap:.35rem}.search-label,.search-row,.sort-control{grid-column:1;grid-row:auto}.sort-control{margin-top:.25rem}}
 

@@ -52,6 +52,8 @@ let snapshot;
 let snapshotKey;
 let mutationBusy = false;
 let viewReady = false;
+let browserLoadingTimer;
+let moveLoadingTimer;
 const initialBackendOrigin = getApiOrigin() || window.location.origin;
 let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
 let configurationReady = false;
@@ -350,15 +352,33 @@ function syncSortAccessibility() {
 }
 
 function setBrowserLoading(visible, message = "Loading files…") {
-  browserLoadingMask.hidden = !visible;
-  browserLoadingMask.setAttribute("aria-busy", String(visible));
   browserLoadingLabel.textContent = message;
+  clearTimeout(browserLoadingTimer);
+  if (!visible) {
+    browserLoadingMask.hidden = true;
+    browserLoadingMask.setAttribute("aria-busy", "false");
+    return;
+  }
+  if (!browserLoadingMask.hidden) return;
+  browserLoadingTimer = setTimeout(() => {
+    browserLoadingMask.hidden = false;
+    browserLoadingMask.setAttribute("aria-busy", "true");
+  }, 220);
 }
 
 function setMoveLoading(visible, message = "Loading destination folders…") {
-  moveLoadingMask.hidden = !visible;
-  moveLoadingMask.setAttribute("aria-busy", String(visible));
   moveLoadingLabel.textContent = message;
+  clearTimeout(moveLoadingTimer);
+  if (!visible) {
+    moveLoadingMask.hidden = true;
+    moveLoadingMask.setAttribute("aria-busy", "false");
+    return;
+  }
+  if (!moveLoadingMask.hidden) return;
+  moveLoadingTimer = setTimeout(() => {
+    moveLoadingMask.hidden = false;
+    moveLoadingMask.setAttribute("aria-busy", "true");
+  }, 220);
 }
 
 function showError(error) {
