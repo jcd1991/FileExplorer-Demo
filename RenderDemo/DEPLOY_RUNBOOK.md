@@ -46,7 +46,21 @@ For a browser smoke check, open the [GitHub Pages demo](https://jcd1991.github.i
 
 ## Credentials and automation
 
-A Render API key is not required for dashboard deployments. Do not create or store one for this manual process. If a future GitHub Actions workflow needs to call the Render API, create a dedicated key in Render, store it as a masked GitHub Actions secret, and never commit it or print it in logs. Keep the dashboard deployment path as the recovery route.
+For repeatable local or CI deploys, create a dedicated Render API key in **Account settings → API Keys** with a narrow name such as `file-explorer-demo-deploy`. Copy it once, store it as a masked secret, and expose it only as `RENDER_API_KEY`. Never commit it, place it in a URL, or print it in logs. Revoke it immediately if exposed.
+
+```sh
+export RENDER_API_KEY='...'
+export RENDER_SERVICE_ID='srv-dbj2p4u7bikc73e8pgo0'
+export RELEASE_SHA='be8c07e'
+
+curl --fail-with-body -sS \
+  -H "Authorization: Bearer ${RENDER_API_KEY}" \
+  -H 'Content-Type: application/json' \
+  -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+  --data "{\"commitId\":\"${RELEASE_SHA}\",\"clearCache\":\"do_not_clear\",\"deployMode\":\"build_and_deploy\"}"
+```
+
+Poll `GET https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys` until the matching deploy is `live`, then run the read-only health checks above. The dashboard's **Manual Deploy** flow remains the recovery path.
 
 ## Current runtime limits
 
