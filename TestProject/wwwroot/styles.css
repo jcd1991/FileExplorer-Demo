@@ -33,6 +33,7 @@ dialog{width:min(1120px,calc(100vw - 2rem));max-width:none;max-height:min(90dvh,
 .sort-control select{margin-top:.35rem}
 .drag-hint{margin-top:0;margin-bottom:.8rem}
 .breadcrumbs{margin-top:1rem;margin-bottom:.45rem}
+.breadcrumbs button{padding-left:0}
 .summary{min-height:0;margin:.35rem 0 .5rem}
 .status-row{gap:.35rem .6rem;margin:0}
 .status-row .status{min-height:0;margin:0}
@@ -45,5 +46,12 @@ dialog{width:min(1120px,calc(100vw - 2rem));max-width:none;max-height:min(90dvh,
 .free-demo-limits__eyebrow{margin:0 0 .1rem;color:#816622;font-size:.65rem;font-weight:750;letter-spacing:.12em}
 .free-demo-limits h3{margin:0;color:#302818;font-size:1rem;line-height:1.25}
 .free-demo-limits__list strong{color:#413314}
+.free-demo-limits{color:var(--text)}
+.free-demo-limits__header{gap:.6rem;margin-bottom:.55rem}
+.free-demo-limits__icon{border-radius:50%;background:#f7e7ad;color:#715b1e}
+.free-demo-limits__eyebrow{color:var(--muted);font-size:.68rem;letter-spacing:.1em}
+.free-demo-limits h3{color:var(--navy);font-size:1.05rem;font-weight:700;letter-spacing:0}
+.free-demo-limits__list strong{color:var(--navy)}
+.hosted-demo .connection-settings{display:none}
 
 
