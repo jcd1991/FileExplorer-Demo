@@ -17,6 +17,39 @@ The Git repository connected to Render must contain both `TestProject/` and `Ren
 3. Review the service plan and confirm it is **Free** before creating the service.
 4. After the first deploy, open the generated `onrender.com` URL. The container serves the same-origin UI and API; `/api/config` is the health-check route.
 
+## Streamlined deploys with a Render API key
+
+Use an account API key for CI or local deploy scripts instead of storing a password. Keep the value in a local secret store or CI secret named `RENDER_API_KEY`; never commit it, place it in a URL, or print it in logs.
+
+1. In Render, open **Account settings → API Keys → Create API key**.
+2. Give it a narrow name such as `file-explorer-demo-deploy` and copy the value once. Render will not show the secret again.
+3. Export it only in the shell or CI job that performs the deploy:
+
+   ```sh
+   export RENDER_API_KEY='...'
+   export RENDER_SERVICE_ID='srv-dbj2p4u7bikc73e8pgo0'
+   ```
+
+4. Trigger a deploy for the service and poll its status (replace the commit SHA with the release being promoted):
+
+   ```sh
+   curl --fail-with-body -sS \
+     -H "Authorization: Bearer ${RENDER_API_KEY}" \
+     -H 'Content-Type: application/json' \
+     -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+     --data '{"commitId":"ce1e3ab","clearCache":"do_not_clear","deployMode":"build_and_deploy"}'
+   ```
+
+   The response includes a deploy ID. Poll `GET https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys` until the promoted deploy is `live` or `failed`. Do not paste the key into browser fields or chat.
+
+5. Confirm the deploy reaches `live`, then verify the service health endpoint:
+
+   ```sh
+   curl --fail-with-body -sS "https://file-explorer-demo-api.onrender.com/api/config"
+   ```
+
+6. Revoke the key in **Account settings → API Keys** when the work is complete or if it was exposed. Store only the replacement in the CI secret manager.
+
 The Blueprint sets a separate root at `/app/demo-files`, one concurrent upload, and a smaller snapshot cache. The static UI hosted separately can connect through its **Backend connection** setting once CORS is configured.
 
 ## Connect GitHub Pages later
