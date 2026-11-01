@@ -102,7 +102,7 @@ public sealed partial class BrowserApiTests : IDisposable
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
-        var service = new FileSystemService(_root);
+        using var service = new FileSystemService(_root);
         Assert.Throws<OperationCanceledException>(() => service.Search("", "needle", "name", "asc", 1, 100, cancellation.Token));
     }
 
@@ -154,7 +154,7 @@ public sealed partial class BrowserApiTests : IDisposable
         var context = new DefaultHttpContext();
         context.Request.ContentType = "multipart/form-data; boundary=browser-test";
         context.Request.ContentLength = FileSystemService.MaxUploadBytes + 1_048_577;
-        var service = new FileSystemService(_root);
+        using var service = new FileSystemService(_root);
         var exception = await Assert.ThrowsAsync<FileBrowserException>(() => service.UploadAsync("", context.Request, CancellationToken.None));
         Assert.Equal(StatusCodes.Status413PayloadTooLarge, exception.StatusCode);
     }
@@ -214,9 +214,9 @@ public sealed partial class BrowserApiTests : IDisposable
         using (var bounded = new UploadReadStream(source, 10))
         {
             var buffer = new byte[6];
-            Assert.Equal(6, await bounded.ReadAsync(buffer.AsMemory()));
+            await bounded.ReadExactlyAsync(buffer.AsMemory());
             var exception = await Assert.ThrowsAsync<FileBrowserException>(async () =>
-                await bounded.ReadAsync(buffer.AsMemory()));
+                await bounded.ReadExactlyAsync(buffer.AsMemory()));
             Assert.Equal(StatusCodes.Status413PayloadTooLarge, exception.StatusCode);
             Assert.Equal(11, source.Position);
         }
@@ -227,7 +227,7 @@ public sealed partial class BrowserApiTests : IDisposable
     public void CleanupFailureWarnsWithoutExposingFilesystemDetails()
     {
         var logger = new CleanupLogger();
-        var service = new FileSystemService(_root, logger);
+        using var service = new FileSystemService(_root, logger);
         service.DeleteTemporaryFile(Path.Combine(_root, "Docs"), "test-correlation");
         Assert.Equal(LogLevel.Warning, logger.Level);
         Assert.Contains("test-correlation", logger.Message);

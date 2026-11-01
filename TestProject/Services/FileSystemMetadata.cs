@@ -95,13 +95,15 @@ internal static class FileSystemMetadata
     [StructLayout(LayoutKind.Sequential)]
     private struct WindowsFileId { public ulong Volume, Low, High; }
 
-    [DllImport("System.Native", EntryPoint = "SystemNative_LStat", SetLastError = true)]
+    [DllImport("System.Native", EntryPoint = "SystemNative_LStat", SetLastError = true,
+        CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
     private static extern int LStat([MarshalAs(UnmanagedType.LPUTF8Str)] string path, out UnixStatus status);
 
     [DllImport("System.Native", EntryPoint = "SystemNative_FStat", SetLastError = true)]
     private static extern int FStat(SafeFileHandle handle, out UnixStatus status);
 
-    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    [DllImport("libc", EntryPoint = "open", SetLastError = true,
+        CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
     private static extern int Open([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
 
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]

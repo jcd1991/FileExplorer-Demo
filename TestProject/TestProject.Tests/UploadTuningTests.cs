@@ -14,7 +14,7 @@ public sealed class UploadTuningTests : IDisposable
     [Fact]
     public async Task UploadGateBoundsActiveRequestsAndReleasesOnCancellation()
     {
-        var service = new FileSystemService(_root, uploadCopyBufferBytes: 128 * 1024,
+        using var service = new FileSystemService(_root, uploadCopyBufferBytes: 128 * 1024,
             uploadStreamBufferBytes: 1, maxConcurrentUploads: 1);
         var blocking = new GateStream(Body("first.txt", "first"));
         var first = service.UploadAsync("", Request(blocking), CancellationToken.None);

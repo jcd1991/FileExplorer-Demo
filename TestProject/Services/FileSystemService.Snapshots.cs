@@ -22,8 +22,8 @@ public sealed partial class FileSystemService
                 RemoveSnapshot(id);
             if (estimatedBytes > _snapshotCacheMaxBytes)
             {
-                _logger.LogDebug("File browser snapshot not cached; EstimatedBytes={EstimatedBytes}; CacheMaxBytes={CacheMaxBytes}",
-                    estimatedBytes, _snapshotCacheMaxBytes);
+                if (_logger.IsEnabled(LogLevel.Debug))
+                    SnapshotNotCached(_logger, estimatedBytes, _snapshotCacheMaxBytes);
                 return;
             }
             var evicted = 0;
@@ -34,8 +34,8 @@ public sealed partial class FileSystemService
             }
             _snapshots[result.SnapshotId] = (key, now.AddMinutes(2), estimatedBytes, result);
             _snapshotCacheBytes += estimatedBytes;
-            _logger.LogDebug("File browser snapshot cached; EstimatedBytes={EstimatedBytes}; CacheBytes={CacheBytes}; CacheViews={CacheViews}; EvictedViews={EvictedViews}",
-                estimatedBytes, _snapshotCacheBytes, _snapshots.Count, evicted);
+            if (_logger.IsEnabled(LogLevel.Debug))
+                SnapshotCached(_logger, estimatedBytes, _snapshotCacheBytes, _snapshots.Count, evicted);
         }
     }
 
