@@ -8,6 +8,8 @@
 
 The static browser runs on GitHub Pages and calls the disposable API on Render. The hosted demo supports 100 MiB uploads, Turnstile-protected file changes, and shared free-plan rate limits.
 
+📖 **[Read the project guide](TestProject/docs/PROJECT_GUIDE.md)** for the request flow, code map, safety boundaries, and design decisions.
+
 ## What this project proves
 
 ### Original interview requirements
@@ -108,10 +110,3 @@ Responses use JSON for browse/search and Problem Details for expected failures. 
 - [Render deployment runbook](RenderDemo/DEPLOY_RUNBOOK.md)
 
 The hosted service is a disposable, single-user demo without authentication. Render Free can sleep and reset its local files after restart or redeploy. It is suitable for review and bounded experiments, not production multi-tenant storage or a production performance SLO.
-
-## More detail
-
-- [Project guide](TestProject/docs/PROJECT_GUIDE.md) — architecture and request walkthrough
-- [Refined acceptance criteria](TestProject/docs/REQUIREMENTS.md) — counts, sizes, bounds, and performance interpretation
-- [Render setup](RenderDemo/README.md) — hosting, Turnstile, limits, and safety
-- [Final review](TestProject/docs/FINAL_REVIEW.md) — verification and known gaps
