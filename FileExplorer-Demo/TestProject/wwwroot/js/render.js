@@ -66,6 +66,15 @@ export function renderEntries(target, entries) {
     const actionSummary = document.createElement("summary");
     actionSummary.textContent = "More actions";
     actionSummary.addEventListener("click", () => {
+      for (const otherMenu of document.querySelectorAll("details.action-menu[open]")) {
+        if (otherMenu === actionMenu) continue;
+        otherMenu.open = false;
+        const otherList = otherMenu.querySelector(".action-list");
+        if (otherList) {
+          otherList.style.left = "";
+          otherList.style.top = "";
+        }
+      }
       requestAnimationFrame(() => {
         if (!actionMenu.open) return;
         const summaryRect = actionSummary.getBoundingClientRect();

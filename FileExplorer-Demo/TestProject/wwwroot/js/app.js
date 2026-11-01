@@ -1,5 +1,5 @@
 import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, uploadFile } from "./api.js";
-import { formatBytes, renderBreadcrumbs, renderEntries } from "./render.js?v=menu-4";
+import { formatBytes, renderBreadcrumbs, renderEntries } from "./render.js?v=menu-5";
 import { readState, writeState } from "./url-state.js";
 
 const dialog = document.querySelector("#browser-dialog");
