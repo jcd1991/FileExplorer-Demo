@@ -67,6 +67,7 @@ The URL stores the shareable view: dialog state, folder, query, sort, direction,
 ### Browser behavior
 
 - Native `<dialog>` with Escape handling and focus return.
+- Accessible loading masks cover demo initialization, view loads, destination-folder loads, and moves.
 - Debounced search, aborted obsolete requests, stale-response guards, Refresh, and deep-link restore.
 - User-visible file names are inserted as text nodes, not HTML.
 - The selected backend origin is stored in browser local storage.

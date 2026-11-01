@@ -26,6 +26,10 @@ const moveDialog = document.querySelector("#move-dialog");
 const moveFolders = document.querySelector("#move-folders");
 const moveCrumbs = document.querySelector("#move-breadcrumbs");
 const moveStatus = document.querySelector("#move-status");
+const browserLoadingMask = document.querySelector("#browser-loading-mask");
+const browserLoadingLabel = document.querySelector("#browser-loading-label");
+const moveLoadingMask = document.querySelector("#move-loading-mask");
+const moveLoadingLabel = document.querySelector("#move-loading-label");
 let moveSource;
 let moveDestination = "";
 let moveVersion = 0;
@@ -46,12 +50,18 @@ let mutationBusy = false;
 let viewReady = false;
 const initialBackendOrigin = getApiOrigin() || window.location.origin;
 let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
+let configurationReady = false;
+let configurationError;
 
-getConfig().then((config) => {
+const configurationPromise = getConfig().then((config) => {
   if ((getApiOrigin() || window.location.origin) !== initialBackendOrigin) return;
   diagnosticLogging = config.diagnosticsEnabled === true;
   configureDemo(config, initialBackendOrigin);
-}).catch(showError);
+}).catch((error) => {
+  configurationError = error;
+}).finally(() => {
+  configurationReady = true;
+});
 
 apiOriginInput.value = getApiOrigin();
 apiMode.value = apiOriginInput.value ? "custom" : "same-origin";
@@ -245,8 +255,11 @@ async function loadEntries() {
   pageLabel.textContent = "";
   renderBreadcrumbs(breadcrumbs, state.path);
   previousPage.disabled = nextPage.disabled = true;
+  setBrowserLoading(true, configurationReady ? "Loading files…" : "Initializing demo…");
   setStatus("Loading…");
   await measure(state.query.trim() ? "search" : "browse", async () => {
+    await configurationPromise;
+    if (configurationError) throw configurationError;
     let result;
     try {
       result = await fetchEntries(state, activeRequest.signal, snapshot);
@@ -259,6 +272,7 @@ async function loadEntries() {
     if (currentVersion !== requestVersion) return;
     snapshot = result.snapshotId;
     viewReady = true;
+    setBrowserLoading(false);
     renderEntries(entries, result.entries);
     setReady(true);
     renderBreadcrumbs(breadcrumbs, state.path);
@@ -272,6 +286,7 @@ async function loadEntries() {
     if (result.page !== readState().page) writeState(state, true);
     setStatus(result.entries.length === 0 ? "No matching entries." : "");
   }, () => currentVersion === requestVersion);
+  if (currentVersion === requestVersion && !viewReady) setBrowserLoading(false);
 }
 
 function changePage(delta) {
@@ -298,6 +313,18 @@ async function measure(operation, action, isCurrent = () => true) {
 function setStatus(message, error = false) {
   status.textContent = message;
   status.classList.toggle("error", error);
+}
+
+function setBrowserLoading(visible, message = "Loading files…") {
+  browserLoadingMask.hidden = !visible;
+  browserLoadingMask.setAttribute("aria-busy", String(visible));
+  browserLoadingLabel.textContent = message;
+}
+
+function setMoveLoading(visible, message = "Loading destination folders…") {
+  moveLoadingMask.hidden = !visible;
+  moveLoadingMask.setAttribute("aria-busy", String(visible));
+  moveLoadingLabel.textContent = message;
 }
 
 function showError(error) {
@@ -473,9 +500,10 @@ function createTurnstileTokenProvider(siteKey) {
 function setReady(ready) {
   for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
   for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
-  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), closeButton, previousPage, nextPage,
+  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), previousPage, nextPage,
     document.querySelector("#refresh"), apiMode, apiOriginInput, apiForm.querySelector("button[type=submit]"),
     ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) control.disabled = mutationBusy;
+  closeButton.disabled = mutationBusy;
   undoButton.disabled = mutationBusy || !demoWritesEnabled;
 }
 
@@ -507,6 +535,7 @@ async function mutateEntry(button) {
   }
   mutationBusy = true;
   setReady(false);
+  setBrowserLoading(true, `${button.textContent} in progress…`);
   setStatus(`Working: ${operation}…`);
   await measure(operation, () => changeEntry(operation, source, destination));
   const error = status.classList.contains("error") ? status.textContent : null;
@@ -514,10 +543,12 @@ async function mutateEntry(button) {
   snapshot = undefined;
   await loadEntries();
   if (error) setStatus(error, true);
+  if (error) setBrowserLoading(false);
 }
 
 async function loadMoveFolders(path, page) {
   const version = ++moveVersion; moveDestination = path; movePage = Math.max(1, page);
+  setMoveLoading(true);
   moveStatus.textContent = "Loading folders…"; renderBreadcrumbs(moveCrumbs, path); moveFolders.replaceChildren();
   document.querySelector("#move-submit").disabled = !validDrop(moveSource, path);
   try {
@@ -528,7 +559,13 @@ async function loadMoveFolders(path, page) {
     document.querySelector("#move-previous").disabled = result.page <= 1;
     document.querySelector("#move-next").disabled = result.page >= result.totalPages;
     moveStatus.textContent = result.entries.some(entry => entry.kind === "folder") ? "Choose a folder or move here." : "No folders on this page. Use the page controls to continue.";
-  } catch (error) { if (version === moveVersion) moveStatus.textContent = error.message; }
+    setMoveLoading(false);
+  } catch (error) {
+    if (version === moveVersion) {
+      moveStatus.textContent = error.message;
+      setMoveLoading(false);
+    }
+  }
 }
 
 function closeMovePicker() { if (moveDialog.open) moveDialog.close(); }
@@ -539,7 +576,7 @@ function clearDrag() { draggedPath = undefined; entries.querySelectorAll(".drop-
 
 async function executeMove(source, destination, isUndo = false) {
   if (mutationBusy || !demoWritesEnabled || !validDrop(source, parentPath(destination))) return;
-  mutationBusy = true; setReady(false); setStatus("Moving…");
+  mutationBusy = true; setReady(false); setBrowserLoading(true, isUndo ? "Undoing move…" : "Moving…"); setStatus("Moving…");
   let succeeded = false;
   await measure("move", async () => { await changeEntry("move", source, destination); succeeded = true; });
   const failed = status.classList.contains("error"); mutationBusy = false; snapshot = undefined;
@@ -549,5 +586,6 @@ async function executeMove(source, destination, isUndo = false) {
     await loadEntries();
     setStatus(isUndo ? `Move undone. Returned ${source} to ${destination}.` : `Moved ${source} to ${destination}.`);
   } else if (!failed) { await loadEntries(); setStatus("Move outcome is uncertain. Check the listing before retrying.", true); }
+  if (failed) setBrowserLoading(false);
   setReady(viewReady);
 }

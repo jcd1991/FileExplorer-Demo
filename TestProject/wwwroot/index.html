@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Browse and transfer files from a configured server directory.">
   <title>File Browser</title>
-  <link rel="stylesheet" href="./styles.css?v=drag-move-undo-1">
+  <link rel="stylesheet" href="./styles.css?v=loading-masks-1">
 </head>
 <body>
   <main class="launch">
@@ -27,6 +27,10 @@
   </main>
   <dialog id="browser-dialog" aria-labelledby="dialog-title">
     <section class="browser">
+      <div id="browser-loading-mask" class="loading-mask" role="status" aria-live="polite" aria-busy="true">
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span id="browser-loading-label">Initializing file browser…</span>
+      </div>
       <header class="dialog-header">
         <div><p class="eyebrow">SERVER FILES</p><h2 id="dialog-title">File browser</h2></div>
         <button id="close-browser" class="icon-button" type="button" aria-label="Close file browser">×</button>
@@ -94,6 +98,10 @@
   </dialog>
   <dialog id="move-dialog" aria-labelledby="move-title">
     <section class="move-picker">
+      <div id="move-loading-mask" class="loading-mask" role="status" aria-live="polite" aria-busy="true" hidden>
+        <span class="loading-spinner" aria-hidden="true"></span>
+        <span id="move-loading-label">Loading destination folders…</span>
+      </div>
       <header class="dialog-header"><div><p class="eyebrow">MOVE ENTRY</p><h2 id="move-title">Choose destination</h2></div><button id="move-close" class="icon-button" type="button" aria-label="Cancel move">×</button></header>
       <p id="move-source"></p><nav id="move-breadcrumbs" class="breadcrumbs" aria-label="Destination folder"></nav><p id="move-status" class="status" role="status" aria-live="polite"></p>
       <div class="table-scroll"><table><thead><tr><th scope="col">Folders</th></tr></thead><tbody id="move-folders"></tbody></table></div>
@@ -105,6 +113,6 @@
       document.querySelectorAll(".free-demo-limits").forEach((notice) => { notice.hidden = false; });
     }
   </script>
-  <script type="module" src="./js/app.js?v=upload-cap-100m-1"></script>
+  <script type="module" src="./js/app.js?v=loading-masks-1"></script>
 </body>
 </html>

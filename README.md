@@ -27,6 +27,7 @@ The static browser runs on GitHub Pages and calls the disposable API on Render. 
 
 - ✅ Accessible native `<dialog>` with Escape handling and focus return
 - ✅ Debounced search, request cancellation, stale-response protection, and Refresh
+- ✅ Accessible loading masks while the demo initializes, views load, and moves run
 - ✅ Copy, move, delete, drag-and-drop move, keyboard/touch Move picker, and Undo move
 - ✅ Root containment, traversal checks, symlink/reparse-point rejection, conflict checks, and filesystem identity checks
 - ✅ Iterative, bounded mutation planning with staged copy and cleanup

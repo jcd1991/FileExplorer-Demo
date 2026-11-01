@@ -36,6 +36,36 @@ dialog::backdrop { background: #14213199; }
 .file-name[draggable="true"]:active, .entry-name[draggable="true"]:active { cursor: grabbing; }
 .drop-target { outline: 3px solid #155eef; outline-offset: -3px; background: #eaf2ff !important; }
 .browser { padding: 1.4rem; }
+.browser, .move-picker { position: relative; }
+.loading-mask {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  padding: 1.5rem;
+  border-radius: .8rem;
+  background: #ffffffdd;
+  color: #243243;
+  font-weight: 650;
+  text-align: center;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+.loading-mask[hidden] { display: none; }
+.loading-spinner {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 1.15rem;
+  border: .18rem solid #c8d9f4;
+  border-top-color: #155eef;
+  border-radius: 50%;
+  animation: loading-spin .8s linear infinite;
+}
+@keyframes loading-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .loading-spinner { animation: none; } }
 .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; }
 .dialog-header h2 { margin: 0; }
 .eyebrow { margin: 0 0 .25rem; color: #64748b; font-size: .7rem; font-weight: 700; letter-spacing: .12em; }
