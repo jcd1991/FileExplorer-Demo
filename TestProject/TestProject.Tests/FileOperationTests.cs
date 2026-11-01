@@ -29,7 +29,7 @@ public sealed partial class BrowserApiTests
     [Fact]
     public void SnapshotCacheEvictsOldestViewWhenEstimatedByteBudgetIsReached()
     {
-        var service = new FileSystemService(_root, snapshotCacheMaxViews: 64, snapshotCacheMaxBytes: 25_000);
+        using var service = new FileSystemService(_root, snapshotCacheMaxViews: 64, snapshotCacheMaxBytes: 25_000);
         var first = service.Browse("Many", "name", "asc", 1, 100, CancellationToken.None);
         var second = service.Browse("Many", "size", "asc", 1, 100, CancellationToken.None);
 
@@ -46,7 +46,7 @@ public sealed partial class BrowserApiTests
     [Fact]
     public void DefaultSnapshotCacheRetainsMoreThanTwoViews()
     {
-        var service = new FileSystemService(_root);
+        using var service = new FileSystemService(_root);
         var first = service.Browse("Many", "name", "asc", 1, 100, CancellationToken.None);
         service.Browse("Many", "size", "asc", 1, 100, CancellationToken.None);
         service.Browse("Many", "modified", "asc", 1, 100, CancellationToken.None);

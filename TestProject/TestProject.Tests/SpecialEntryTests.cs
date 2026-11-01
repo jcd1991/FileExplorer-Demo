@@ -78,7 +78,7 @@ public sealed partial class BrowserApiTests
     [Fact]
     public async Task CancelledMutationDoesNotHoldGateOrChangeSource()
     {
-        var service = new FileSystemService(_root);
+        using var service = new FileSystemService(_root);
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
@@ -114,7 +114,7 @@ public sealed partial class BrowserApiTests
         using var watcher = new FileSystemWatcher(_root, ".filebrowser-upload-*");
         watcher.Created += (_, _) => cancelled.Cancel();
         watcher.EnableRaisingEvents = true;
-        var service = new FileSystemService(_root);
+        using var service = new FileSystemService(_root);
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Run(() =>
             service.ChangeAsync("copy", "cancel-source.bin", "CancelledCopy.bin", cancelled.Token))
             .WaitAsync(TimeSpan.FromSeconds(10)));
@@ -127,11 +127,12 @@ public sealed partial class BrowserApiTests
     [Fact]
     public async Task RootWithTrailingSeparatorSupportsNestedDestination()
     {
-        var service = new FileSystemService(_root + Path.DirectorySeparatorChar);
+        using var service = new FileSystemService(_root + Path.DirectorySeparatorChar);
         await service.ChangeAsync("copy", "Docs", "Many/Copy", CancellationToken.None);
         Assert.True(File.Exists(Path.Combine(_root, "Many", "Copy", "Nested", "needle.txt")));
     }
 
-    [DllImport("System.Native", EntryPoint = "SystemNative_MkFifo", SetLastError = true)]
+    [DllImport("System.Native", EntryPoint = "SystemNative_MkFifo", SetLastError = true,
+        CharSet = CharSet.Ansi, BestFitMapping = false, ThrowOnUnmappableChar = true)]
     private static extern int MakeFifo([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int mode);
 }

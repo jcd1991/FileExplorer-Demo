@@ -8,7 +8,7 @@ using TestProject.Models;
 
 namespace TestProject.Services;
 
-public sealed partial class FileSystemService
+public sealed partial class FileSystemService : IDisposable
 {
     public const long MaxUploadBytes = 100L * 1024 * 1024;
     public const int MaxPageSize = 500;
@@ -97,8 +97,8 @@ public sealed partial class FileSystemService
 
         if (_logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("File browser search scan completed; DurationMs={DurationMs}; Inspected={Inspected}; Matches={Matches}; Partial={Partial}",
-                Stopwatch.GetElapsedTime(start).TotalMilliseconds, state.Inspected, state.Entries.Count, state.Partial);
+            var durationMs = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+            SearchScanCompleted(_logger, durationMs, state.Inspected, state.Entries.Count, state.Partial);
         }
 
         return CreateResponse(state.Entries, state.Warnings, state.Partial, sort, direction, page, pageSize, key);
@@ -391,17 +391,17 @@ public sealed partial class FileSystemService
         {
             throw new FileBrowserException(StatusCodes.Status409Conflict, "Directory is unavailable", "The directory changed or became unavailable while reading it.");
         }
-        if (started != 0)
+        if (started != 0 && _logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("File browser directory scan completed; DurationMs={DurationMs}; Inspected={Inspected}; Returned={Returned}; Partial={Partial}",
-                Stopwatch.GetElapsedTime(started).TotalMilliseconds, inspected, entries.Count, partial);
+            var durationMs = Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            DirectoryScanCompleted(_logger, durationMs, inspected, entries.Count, partial);
         }
         return (entries, warnings, partial);
     }
 
     // Reuse enumeration metadata for names, attributes, size, and timestamp instead of
     // constructing FileInfo objects and asking the filesystem for each field again.
-    private static IEnumerable<EnumeratedEntry> EnumerateEntries(string directory)
+    private static FileSystemEnumerable<EnumeratedEntry> EnumerateEntries(string directory)
     {
         var options = new EnumerationOptions
         {
@@ -511,10 +511,9 @@ public sealed partial class FileSystemService
         var complete = new FileListResponse(ordered, 1, pageSize, totalPages, summary, partial, warnings, Guid.NewGuid().ToString("N"));
         var preparationMs = started == 0 ? 0 : Stopwatch.GetElapsedTime(started).TotalMilliseconds;
         StoreSnapshot(key, complete);
-        if (started != 0)
+        if (started != 0 && _logger.IsEnabled(LogLevel.Debug))
         {
-            _logger.LogDebug("File browser response prepared; DurationMs={DurationMs}; Entries={Entries}; FileCount={FileCount}; FolderCount={FolderCount}",
-                preparationMs, ordered.Count, summary.FileCount, summary.FolderCount);
+            ResponsePrepared(_logger, preparationMs, ordered.Count, summary.FileCount, summary.FolderCount);
         }
         return PageSnapshot(complete, page, pageSize);
     }
