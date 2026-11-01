@@ -1,4 +1,4 @@
-import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-11";
+import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-12";
 import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
@@ -56,7 +56,10 @@ let viewReady = false;
 let browserLoadingTimer;
 let moveLoadingTimer;
 let browserMutationLoadingLabel = "Applying file change…";
-setMutationRequestListener((active) => setBrowserLoading(active, browserMutationLoadingLabel));
+setMutationRequestListener((active) => {
+  if (active) setBrowserLoading(true, browserMutationLoadingLabel, true);
+  else if (!mutationBusy) setBrowserLoading(false);
+});
 const initialBackendOrigin = getApiOrigin() || window.location.origin;
 let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
 let configurationReady = false;
@@ -355,7 +358,7 @@ function syncSortAccessibility() {
   for (const header of sortHeaders) header.setAttribute("aria-sort", header.dataset.sortColumn === state.sort ? state.direction : "none");
 }
 
-function setBrowserLoading(visible, message = "Loading files…") {
+function setBrowserLoading(visible, message = "Loading files…", immediate = false) {
   browserLoadingLabel.textContent = message;
   clearTimeout(browserLoadingTimer);
   if (!visible) {
@@ -364,10 +367,12 @@ function setBrowserLoading(visible, message = "Loading files…") {
     return;
   }
   if (!browserLoadingMask.hidden) return;
-  browserLoadingTimer = setTimeout(() => {
+  const show = () => {
     browserLoadingMask.hidden = false;
     browserLoadingMask.setAttribute("aria-busy", "true");
-  }, 220);
+  };
+  if (immediate) show();
+  else browserLoadingTimer = setTimeout(show, 220);
 }
 
 function setMoveLoading(visible, message = "Loading destination folders…") {
@@ -470,6 +475,7 @@ function createTurnstileTokenProvider(siteKey) {
   let pending;
 
   function showSecurityCheck() {
+    setBrowserLoading(false);
     securityCheckOverlay.hidden = false;
     securityCheckOverlay.setAttribute("aria-busy", "true");
     setStatus("Complete the security check to continue.");
@@ -510,10 +516,13 @@ function createTurnstileTokenProvider(siteKey) {
           sitekey: siteKey,
           action: "file_mutation",
           execution: "execute",
-          appearance: "always",
+          appearance: "interaction-only",
           size: "compact",
+          "before-interactive-callback": showSecurityCheck,
           callback: (token) => {
             setStatus("Security check passed. Sending the file change…");
+            hideSecurityCheck();
+            setBrowserLoading(true, browserMutationLoadingLabel, true);
             finish(token);
           },
           "error-callback": () => fail("The security check failed. Try the file change again."),
@@ -545,17 +554,19 @@ function createTurnstileTokenProvider(siteKey) {
     pending = undefined;
     clearTimeout(current.timeout);
     hideSecurityCheck();
+    setBrowserLoading(false);
     current.reject(new Error(message));
   }
 
   return async () => {
     if (pending) throw new Error("A security check is already in progress.");
-    showSecurityCheck();
+    setBrowserLoading(true, "Checking security…");
     let widget;
     try {
       widget = await getWidget();
     } catch (error) {
       hideSecurityCheck();
+      setBrowserLoading(false);
       throw error;
     }
     return new Promise((resolve, reject) => {
