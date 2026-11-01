@@ -28,8 +28,8 @@ test('failed navigation clears stale entries and disables uploads', async ({ pag
   await page.goto('/?open=1&path=Alpha');
   await expect(page.locator('#entries')).toContainText('Nested');
   await page.evaluate(() => {
-    history.pushState({}, '', '/?open=1&path=Missing');
-    dispatchEvent(new PopStateEvent('popstate'));
+    globalThis.history.pushState({}, '', '/?open=1&path=Missing');
+    globalThis.dispatchEvent(new globalThis.PopStateEvent('popstate'));
   });
   await expect(page.locator('#status')).toContainText('does not exist');
   await expect(page.locator('#entries tr')).toHaveCount(0);

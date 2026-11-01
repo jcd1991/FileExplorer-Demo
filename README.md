@@ -55,6 +55,8 @@ dotnet test TestProject.sln -c Release
 
 The optional browser regression suite is under `TestProject/browser-tests/`; it uses Playwright only for tests, not in the app. See [CI/CD and testing](#cicd-and-testing) for its command and what the current Pages workflow verifies.
 
+Static JavaScript checks use ESLint from `TestProject/`: run `npm ci && npm run lint` there to check the browser modules, k6 script, and Playwright scripts.
+
 Bounded hosted read and 100 MiB transfer measurements, their limits, and the repeatable k6 download script are documented in [performance research](TestProject/docs/PERFORMANCE_RESEARCH.md).
 
 ## CI/CD and testing

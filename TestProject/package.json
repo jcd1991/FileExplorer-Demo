@@ -1,0 +1,15 @@
+{
+  "name": "file-explorer-demo",
+  "private": true,
+  "scripts": {
+    "lint": "eslint --max-warnings=0 wwwroot/js performance/k6 browser-tests/*.cjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "globals": "17.13.0"
+  },
+  "overrides": {
+    "minimatch": "11.0.1"
+  }
+}
