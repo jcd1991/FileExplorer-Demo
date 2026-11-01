@@ -6,7 +6,7 @@
   <meta name="description" content="Browse and transfer files from a configured server directory.">
   <title>File Browser</title>
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=demo-ui-10">
+  <link rel="stylesheet" href="./styles.css?v=demo-ui-11">
 </head>
 <body class="hosted-demo">
   <main class="launch">
@@ -51,8 +51,15 @@
       </aside>
       <section id="demo-security-check" class="demo-security-check" hidden aria-label="Security check">
         <p>A security check may appear before file changes.</p>
-        <div id="turnstile-widget"></div>
       </section>
+      <div id="security-check-overlay" class="security-check-overlay" hidden role="region" aria-labelledby="security-check-title" aria-live="polite" aria-busy="false">
+        <section class="security-check-card">
+          <p class="eyebrow">SECURITY CHECK</p>
+          <h3 id="security-check-title">Verify before changing files</h3>
+          <p>Complete Cloudflare’s check to continue. The file browser is paused until verification finishes.</p>
+          <div id="turnstile-widget"></div>
+        </section>
+      </div>
       <div class="view-toolbar">
         <form id="search-form" role="search">
           <label class="search-label" for="search-input">Search names in this folder and below</label>
@@ -118,6 +125,6 @@
       document.querySelectorAll(".free-demo-limits").forEach((notice) => { notice.hidden = false; });
     }
   </script>
-  <script type="module" src="./js/app.js?v=demo-ui-10"></script>
+  <script type="module" src="./js/app.js?v=demo-ui-11"></script>
 </body>
 </html>

@@ -1,5 +1,27 @@
 const { test, expect } = require('@playwright/test');
 
+async function enableTurnstileDemo(page) {
+  await page.route('**/api/config', async route => {
+    const response = await route.fetch();
+    const config = await response.json();
+    config.demo = {
+      uploadLimitMiB: 100, requestBurst: 30, requestRefillCount: 30, requestRefillSeconds: 30,
+      maxConcurrentRequests: 4, creationsPerWindow: 2, creationWindowMinutes: 5,
+      mutationsPerWindow: 20, idleSleepMinutes: 15, turnstileReady: true,
+      turnstileSiteKey: 'test-site-key'
+    };
+    await route.fulfill({ response, json: config });
+  });
+  await page.addInitScript(() => {
+    let callbacks;
+    globalThis.window.turnstile = {
+      render(_container, options) { callbacks = options; return 'test-widget'; },
+      execute() { setTimeout(() => callbacks.callback('test-token'), 600); },
+      reset() {}
+    };
+  });
+}
+
 test('deep links, reload, navigation, history, and dialog closure', async ({ page }) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -77,26 +99,27 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
   await expect(page.locator('tr[data-path="Alpha/browser.txt"]')).toBeVisible();
 });
 
+test('demo copy keeps the Turnstile check visible and completes the copy', async ({ page }) => {
+  await enableTurnstileDemo(page);
+  await page.goto('/?open=1&path=Alpha/Nested');
+  const source = page.locator('tr[data-path="Alpha/Nested/report.txt"]');
+  await expect(source).toBeVisible();
+  await source.locator('summary').click();
+  let suggestedDestination;
+  page.once('dialog', dialog => {
+    suggestedDestination = dialog.defaultValue();
+    dialog.accept(suggestedDestination);
+  });
+  await source.getByRole('button', { name: 'Copy report.txt', exact: true }).click();
+  expect(suggestedDestination).toBe('Alpha/Nested/report (copy).txt');
+  await expect(page.locator('#security-check-overlay')).toBeVisible();
+  await expect(page.locator('#browser-loading-mask')).toBeHidden();
+  await expect(page.locator('tr[data-path="Alpha/Nested/report (copy).txt"]')).toBeVisible();
+  await expect(page.locator('#security-check-overlay')).toBeHidden();
+});
+
 test('drag and drop moves entries and Undo restores the previous path', async ({ page }) => {
-  await page.route('**/api/config', async route => {
-    const response = await route.fetch();
-    const config = await response.json();
-    config.demo = {
-      uploadLimitMiB: 100, requestBurst: 30, requestRefillCount: 30, requestRefillSeconds: 30,
-      maxConcurrentRequests: 4, creationsPerWindow: 2, creationWindowMinutes: 5,
-      mutationsPerWindow: 20, idleSleepMinutes: 15, turnstileReady: true,
-      turnstileSiteKey: 'test-site-key'
-    };
-    await route.fulfill({ response, json: config });
-  });
-  await page.addInitScript(() => {
-    let callbacks;
-    globalThis.window.turnstile = {
-      render(_container, options) { callbacks = options; return 'test-widget'; },
-      execute() { setTimeout(() => callbacks.callback('test-token'), 600); },
-      reset() {}
-    };
-  });
+  await enableTurnstileDemo(page);
   await page.route('**/api/files/move', async route => {
     await new Promise(resolve => setTimeout(resolve, 500));
     await route.continue();
@@ -108,14 +131,18 @@ test('drag and drop moves entries and Undo restores the previous path', async ({
   const source = page.locator('tr[data-path="drag-me.txt"]');
   await source.locator('.file-name').dragTo(page.locator('tr[data-path="Alpha"] .entry-name'));
   await expect(page.locator('#status')).toContainText('Completing the security check');
+  await expect(page.locator('#security-check-overlay')).toBeVisible();
   await page.waitForTimeout(300);
   await expect(page.locator('#browser-loading-mask')).toBeHidden();
   await expect(page.locator('#status')).toContainText('Moved drag-me.txt to Alpha/drag-me.txt.');
+  await expect(page.locator('#security-check-overlay')).toBeHidden();
   await page.getByRole('button', { name: 'Undo move' }).click();
   await expect(page.locator('#status')).toContainText('Completing the security check');
+  await expect(page.locator('#security-check-overlay')).toBeVisible();
   await page.waitForTimeout(300);
   await expect(page.locator('#browser-loading-mask')).toBeHidden();
   await expect(page.locator('#status')).toContainText('Move undone. Returned Alpha/drag-me.txt to drag-me.txt.');
+  await expect(page.locator('#security-check-overlay')).toBeHidden();
   await expect(page.locator('tr[data-path="drag-me.txt"]')).toBeVisible();
 });
 

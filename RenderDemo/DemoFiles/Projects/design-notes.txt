@@ -1,0 +1,4 @@
+Design notes
+============
+
+Keep the sample small. Try copying this note into Reports/2026/.

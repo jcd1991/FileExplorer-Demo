@@ -1,4 +1,4 @@
-import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-10";
+import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-11";
 import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
@@ -30,6 +30,7 @@ const moveDialog = document.querySelector("#move-dialog");
 const moveFolders = document.querySelector("#move-folders");
 const moveCrumbs = document.querySelector("#move-breadcrumbs");
 const moveStatus = document.querySelector("#move-status");
+const securityCheckOverlay = document.querySelector("#security-check-overlay");
 const browserLoadingMask = document.querySelector("#browser-loading-mask");
 const browserLoadingLabel = document.querySelector("#browser-loading-label");
 const moveLoadingMask = document.querySelector("#move-loading-mask");
@@ -468,6 +469,17 @@ function createTurnstileTokenProvider(siteKey) {
   let widgetId;
   let pending;
 
+  function showSecurityCheck() {
+    securityCheckOverlay.hidden = false;
+    securityCheckOverlay.setAttribute("aria-busy", "true");
+    setStatus("Complete the security check to continue.");
+  }
+
+  function hideSecurityCheck() {
+    securityCheckOverlay.hidden = true;
+    securityCheckOverlay.setAttribute("aria-busy", "false");
+  }
+
   function loadTurnstile() {
     if (window.turnstile) return Promise.resolve(window.turnstile);
     if (scriptPromise) return scriptPromise;
@@ -498,7 +510,7 @@ function createTurnstileTokenProvider(siteKey) {
           sitekey: siteKey,
           action: "file_mutation",
           execution: "execute",
-          appearance: "interaction-only",
+          appearance: "always",
           size: "compact",
           callback: (token) => {
             setStatus("Security check passed. Sending the file change…");
@@ -523,6 +535,7 @@ function createTurnstileTokenProvider(siteKey) {
     const current = pending;
     pending = undefined;
     clearTimeout(current.timeout);
+    hideSecurityCheck();
     current.resolve(token);
   }
 
@@ -531,11 +544,20 @@ function createTurnstileTokenProvider(siteKey) {
     const current = pending;
     pending = undefined;
     clearTimeout(current.timeout);
+    hideSecurityCheck();
     current.reject(new Error(message));
   }
 
   return async () => {
-    const widget = await getWidget();
+    if (pending) throw new Error("A security check is already in progress.");
+    showSecurityCheck();
+    let widget;
+    try {
+      widget = await getWidget();
+    } catch (error) {
+      hideSecurityCheck();
+      throw error;
+    }
     return new Promise((resolve, reject) => {
       if (pending) {
         reject(new Error("A security check is already in progress."));
@@ -587,7 +609,7 @@ async function mutateEntry(button) {
   if (operation === "delete") {
     if (!window.confirm(`Permanently delete "${source}" and all its contents?`)) return;
   } else {
-    destination = window.prompt(`${button.textContent} "${source}" to root-relative path (including name):`, source);
+    destination = window.prompt(`${button.textContent} "${source}" to root-relative path (including name):`, operation === "copy" ? suggestedCopyPath(source) : source);
     if (destination === null) return;
   }
   mutationBusy = true;
@@ -601,6 +623,15 @@ async function mutateEntry(button) {
   await loadEntries();
   if (error) setStatus(error, true);
   if (error) setBrowserLoading(false);
+}
+
+function suggestedCopyPath(source) {
+  const separator = source.lastIndexOf("/");
+  const name = source.slice(separator + 1);
+  const extension = name.lastIndexOf(".");
+  const stem = extension > 0 ? name.slice(0, extension) : name;
+  const suffix = extension > 0 ? name.slice(extension) : "";
+  return `${source.slice(0, separator + 1)}${stem} (copy)${suffix}`;
 }
 
 async function loadMoveFolders(path, page) {
