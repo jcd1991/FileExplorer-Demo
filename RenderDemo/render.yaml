@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: file-browser-interview-demo
+    runtime: docker
+    plan: free
+    dockerfilePath: RenderDemo/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/config
+    envVars:
+      - key: FileBrowser__RootPath
+        value: /app/demo-files
+      - key: FileBrowser__MaxConcurrentUploads
+        value: "1"
+      - key: FileBrowser__SnapshotCacheMaxViews
+        value: "4"
+      - key: FileBrowser__SnapshotCacheMaxBytes
+        value: "16777216"

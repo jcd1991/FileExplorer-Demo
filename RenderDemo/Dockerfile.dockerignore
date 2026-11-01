@@ -1,0 +1,13 @@
+.git/
+**/.env
+**/.env.*
+**/bin/
+**/obj/
+**/*.md
+TestProject/SampleFiles/
+TestProject/TestProject.Tests/
+TestProject/browser-tests/
+RenderDemo/README.md
+TestProject_2026_Review.zip
+*.zip
+performance/

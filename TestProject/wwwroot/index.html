@@ -5,34 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Browse and transfer files from a configured server directory.">
   <title>File Browser</title>
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=maplarge-ui-demo-1">
 </head>
 <body>
   <main class="launch">
-    <h1>File Browser</h1>
-    <p>Browse the files exposed by this server.</p>
+    <p class="launch-kicker">FILEEXPLORER</p>
+    <h1>Browse your files with confidence.</h1>
+    <p>Explore, search, and transfer files from a configured server directory.</p>
     <button id="open-browser" type="button">Open file browser</button>
   </main>
-  <dialog id="browser-dialog" aria-labelledby="dialog-title">
+  <dialog id="browser-dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="summary">
     <section class="browser">
       <header class="dialog-header">
         <div><p class="eyebrow">SERVER FILES</p><h2 id="dialog-title">File browser</h2></div>
         <button id="close-browser" class="icon-button" type="button" aria-label="Close file browser">×</button>
       </header>
-      <form id="search-form" role="search">
-        <label class="search-label" for="search-input">Search names in this folder and below</label>
-        <div class="search-row"><input id="search-input" name="q" type="search" autocomplete="off" placeholder="Search files and folders"><button type="submit">Search</button></div>
-      </form>
-      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Folder path"></nav>
+      <div class="view-toolbar">
+        <form id="search-form" role="search">
+          <label class="search-label" for="search-input">Search names in this folder and below</label>
+          <div class="search-row"><input id="search-input" name="q" type="search" autocomplete="off" placeholder="Search files and folders"><button type="submit">Search</button></div>
+        </form>
+        <label class="sort-control" for="sort-select">Sort by<select id="sort-select"><option value="name">Name</option><option value="size">Size</option><option value="modified">Modified</option></select></label>
+      </div>
       <p class="drag-hint">Tip: Drag a file or folder onto a folder or breadcrumb to move it. Use <strong>Move</strong> to choose a destination.</p>
+      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Folder path"></nav>
       <p id="summary" class="summary" aria-live="polite"></p>
-      <div class="status-row"><p id="status" class="status" role="status" aria-live="polite"></p><button id="undo-move" type="button" hidden>Undo move</button></div>
+      <div class="status-row" hidden><p id="status" class="status" role="status" aria-live="polite"></p><button id="undo-move" type="button" hidden>Undo move</button></div>
       <div class="table-scroll">
         <table>
           <thead><tr>
-            <th scope="col"><button type="button" data-sort="name">Name <span aria-hidden="true">↕</span></button></th>
-            <th scope="col"><button type="button" data-sort="size">Size <span aria-hidden="true">↕</span></button></th>
-            <th scope="col"><button type="button" data-sort="modified">Modified <span aria-hidden="true">↕</span></button></th>
+            <th scope="col" data-sort-column="name"><button type="button" data-sort="name">Name <span aria-hidden="true">↕</span></button></th>
+            <th scope="col" data-sort-column="size"><button type="button" data-sort="size">Size <span aria-hidden="true">↕</span></button></th>
+            <th scope="col" data-sort-column="modified"><button type="button" data-sort="modified">Modified <span aria-hidden="true">↕</span></button></th>
             <th scope="col"><span class="visually-hidden">Actions</span></th>
           </tr></thead>
           <tbody id="entries"></tbody>
@@ -72,6 +76,6 @@
       <footer class="controls"><div class="pager"><button id="move-previous" type="button">Previous</button><span id="move-page"></span><button id="move-next" type="button">Next</button></div><button id="move-submit" type="button">Move here</button></footer>
     </section>
   </dialog>
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js?v=demo-ui-1"></script>
 </body>
 </html>
