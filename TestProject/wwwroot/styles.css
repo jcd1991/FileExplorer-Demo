@@ -20,6 +20,9 @@ dialog{width:min(1120px,calc(100vw - 2rem));max-width:none;max-height:min(90dvh,
 .drag-hint{margin-top:.2rem;margin-bottom:1rem}
 .breadcrumbs{margin-top:1.25rem;margin-bottom:.7rem}
 .summary{margin-top:.7rem;margin-bottom:.85rem}
+.sort-control select{appearance:none;padding-right:2.5rem;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath d='m3 6 5 5 5-5' fill='none' stroke='%2359677d' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right .9rem center}
+.summary{margin-bottom:.65rem}
+.table-scroll{margin-top:0}
 
 /* Keep the demo disclosure visibly distinct while preserving the compact layout. */
 .free-demo-limits{border-color:#ead28c;background:linear-gradient(135deg,#fffaf0,#fff4d3);box-shadow:0 4px 14px rgb(141 106 32 / 7%);color:#44391f}
