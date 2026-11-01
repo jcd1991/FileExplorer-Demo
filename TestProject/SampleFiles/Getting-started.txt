@@ -1,0 +1,4 @@
+Welcome to the file browser playground.
+
+Try searching, sorting, downloading, copying, moving, uploading, and deleting
+these small fictional sample files.

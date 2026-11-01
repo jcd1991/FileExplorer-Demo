@@ -333,7 +333,7 @@ async function mutateEntry(button) {
   if (operation === "delete") {
     if (!window.confirm(`Permanently delete "${source}" and all its contents?`)) return;
   } else {
-    destination = window.prompt(`${button.textContent} "${source}" to root-relative path (including name):`, source);
+    destination = window.prompt(`${button.textContent} "${source}" to root-relative path (including name):`, operation === "copy" ? suggestedCopyPath(source) : source);
     if (destination === null) return;
   }
   mutationBusy = true;
@@ -345,6 +345,15 @@ async function mutateEntry(button) {
   snapshot = undefined;
   await loadEntries();
   if (error) setStatus(error, true);
+}
+
+function suggestedCopyPath(source) {
+  const separator = source.lastIndexOf("/");
+  const name = source.slice(separator + 1);
+  const extension = name.lastIndexOf(".");
+  const stem = extension > 0 ? name.slice(0, extension) : name;
+  const suffix = extension > 0 ? name.slice(extension) : "";
+  return `${source.slice(0, separator + 1)}${stem} (copy)${suffix}`;
 }
 
 async function loadMoveFolders(path, page) {

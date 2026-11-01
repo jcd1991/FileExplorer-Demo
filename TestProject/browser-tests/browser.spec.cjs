@@ -55,16 +55,19 @@ test('browser upload/download plus copy, move, cancel delete, and delete', async
   const chunks = [];
   for await (const chunk of await download.createReadStream()) chunks.push(chunk);
   expect(Buffer.concat(chunks).toString()).toBe('browser transfer bytes');
+  await row.locator('summary').click();
   page.once('dialog', dialog => dialog.accept('Alpha/copied.txt'));
   await row.getByRole('button', { name: 'Copy browser.txt', exact: true }).click();
   row = page.locator('tr[data-path="Alpha/copied.txt"]');
   await expect(row).toBeVisible();
+  await row.locator('summary').click();
   await row.getByRole('button', { name: 'Move copied.txt', exact: true }).click();
   await page.locator('#move-folders').getByRole('button', { name: '📁 Nested' }).click();
   await page.locator('#move-submit').click();
   await page.locator('#entries').getByRole('button', { name: '📁 Nested' }).click();
   row = page.locator('tr[data-path="Alpha/Nested/copied.txt"]');
   await expect(row).toBeVisible();
+  await row.locator('summary').click();
   page.once('dialog', dialog => dialog.dismiss());
   await row.getByRole('button', { name: 'Delete copied.txt', exact: true }).click();
   await expect(row).toBeVisible();
@@ -79,6 +82,7 @@ test('move picker cancels with Escape and dragging moves a file into a folder', 
   await page.locator('#upload-file').setInputFiles({ name: 'drag-me.txt', mimeType: 'text/plain', buffer: Buffer.from('drag bytes') });
   await page.getByRole('button', { name: 'Upload', exact: true }).click();
   const source = page.locator('tr[data-path="drag-me.txt"]');
+  await source.locator('summary').click();
   await source.getByRole('button', { name: 'Move drag-me.txt', exact: true }).click();
   await expect(page.locator('#move-dialog')).toBeVisible();
   await page.keyboard.press('Escape');

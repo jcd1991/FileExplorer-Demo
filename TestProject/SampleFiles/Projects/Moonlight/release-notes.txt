@@ -1,0 +1,5 @@
+Moonlight release notes
+=======================
+
+Version 1 is a fictional example. Use More actions to copy this file, then
+move the copy to another folder and try Undo.
