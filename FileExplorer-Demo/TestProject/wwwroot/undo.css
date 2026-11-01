@@ -1,0 +1,156 @@
+.status-row #undo-move {
+  margin-left: 0;
+  padding: .45rem .75rem;
+  border-color: #b8cbe2;
+  background: #eef5fc;
+  color: var(--blue);
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.status-row {
+  padding-bottom: .75rem;
+}
+
+.status-row[hidden] {
+  display: none;
+}
+
+/* Keep the hint visually separated from the search controls and leave room
+   for action menus inside the scrollable table viewport. */
+.view-toolbar + .drag-hint {
+  margin-top: .85rem;
+}
+
+.view-toolbar {
+  align-items: flex-start;
+}
+
+.sort-control select {
+  margin-top: .4rem;
+  appearance: none;
+  padding-right: 2.5rem;
+}
+
+.sort-control {
+  position: relative;
+}
+
+.sort-control::after {
+  position: absolute;
+  right: 1rem;
+  bottom: .85rem;
+  width: .45rem;
+  height: .45rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  content: "";
+  pointer-events: none;
+  transform: rotate(45deg);
+}
+
+.summary {
+  padding-inline: .75rem;
+}
+
+.entry-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: .5rem;
+  padding-right: .55rem;
+}
+
+.action-menu {
+  vertical-align: initial;
+}
+
+.action-list {
+  position: fixed;
+  width: 180px;
+  min-width: 0;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 20;
+}
+
+.action-menu.action-menu--above .action-list {
+  top: auto;
+  bottom: auto;
+}
+
+@media (max-width: 719px) {
+  .entry-actions {
+    padding-right: 0;
+    justify-content: flex-start;
+  }
+
+  .action-list {
+    width: min(220px, calc(100vw - 1rem));
+    right: 0;
+  }
+}
+
+.status-row #undo-move:hover {
+  background: #dfeefc;
+}
+
+@media (max-width: 719px) {
+  button,
+  input,
+  select,
+  .breadcrumbs button,
+  .entry-name,
+  .file-name,
+  .entry-actions a {
+    min-height: 44px;
+  }
+
+  .entry-actions a {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+  }
+
+  tbody tr {
+    gap: .2rem .5rem;
+    margin: .35rem 0;
+    padding: .55rem;
+  }
+
+  tbody td[data-label="Actions"] {
+    padding-top: .15rem;
+  }
+
+  .status-row {
+    align-items: stretch;
+  }
+
+  .status-row #undo-move {
+    width: 100%;
+    margin-left: 0;
+  }
+}
+
+.action-menu summary {
+  display: inline-flex;
+  align-items: center;
+}
+
+.download-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-right: 0;
+  padding: .4rem;
+  border-radius: 8px;
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.download-link:hover {
+  background: #eef4fb;
+}
