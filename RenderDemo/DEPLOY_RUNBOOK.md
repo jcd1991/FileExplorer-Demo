@@ -1,6 +1,21 @@
 # Render deployment runbook
 
-Use this runbook to deploy the demo API and proxy from the `main` branch.
+Use this runbook to publish changes to the local app, GitHub Pages demo, and Render demo without letting the two frontend builds drift.
+
+## One frontend source, three run targets
+
+`TestProject/wwwroot` is the shared frontend source of truth. The local ASP.NET app serves it, the Pages workflow publishes it directly, and the Render Docker image copies it into its static web root. Shared UI and accessibility fixes belong here; do not maintain a second Pages-only copy.
+
+| Change | Local verification | Publish |
+| --- | --- | --- |
+| Shared UI, CSS, accessibility, or browser behavior | Run the local app and check the affected desktop/mobile state | Push to `main`; GitHub Pages publishes automatically. Redeploy Render only if you also need its separately hosted frontend build updated. |
+| Pages-only metadata or hosting configuration | Check the generated Pages HTML and asset paths | Push to `main`; wait for the Pages workflow. |
+| Render API, proxy, rate limit, upload, or Turnstile behavior | Run relevant tests and check local API behavior | Push to `main`, then manually deploy the Render service using the steps below. |
+| Shared frontend plus Render API/proxy change | Check local app and frontend | Publish Pages, then deploy Render and verify both targets. |
+
+For shared frontend changes, bump the `styles.css` and/or `js/app.js` query version in `TestProject/wwwroot/index.html` when changing those assets. Use the same source version for local and hosted builds. After deployment, open Pages with a temporary cache-busting query such as `?open=1&v=demo-ui-7`; the index should reference the current asset versions. Do not keep testing the old `v=demo-ui-2` URL.
+
+Before closing a shared UI task, compare the local app and Pages in Chrome at the same viewport and state. Check the toolbar alignment, sort caret, tip-to-toolbar spacing, breadcrumb/file-count spacing, and open More actions menu, including while scrolling. Confirm the menu is visible and usable and that the local and hosted layouts match. The Pages URL is `https://jcd1991.github.io/FileExplorer-Demo/`.
 
 ## Target service
 
