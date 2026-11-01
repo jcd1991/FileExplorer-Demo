@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Browse and transfer files from a configured server directory.">
+  <title>File Browser</title>
+  <link rel="stylesheet" href="./styles.css?v=maplarge-ui-local-1">
+  <link rel="stylesheet" href="./undo.css?v=undo-align-13">
+</head>
+<body>
+  <main class="launch">
+    <p class="launch-kicker">FILEEXPLORER</p>
+    <h1>Browse your files with confidence.</h1>
+    <p>Explore, search, and transfer files from a configured server directory.</p>
+    <button id="open-browser" type="button">Open file browser</button>
+  </main>
+  <dialog id="browser-dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="summary">
+    <section class="browser">
+      <header class="dialog-header">
+        <div><p class="eyebrow">SERVER FILES</p><h2 id="dialog-title">File browser</h2></div>
+        <button id="close-browser" class="icon-button" type="button" aria-label="Close file browser">×</button>
+      </header>
+      <div class="view-toolbar">
+      <form id="search-form" role="search">
+        <label class="search-label" for="search-input">Search names in this folder and below</label>
+        <div class="search-row"><input id="search-input" name="q" type="search" autocomplete="off" placeholder="Search files and folders"><button type="submit">Search</button></div>
+      </form>
+      <label class="sort-control" for="sort-select">Sort by<select id="sort-select"><option value="name">Name</option><option value="size">Size</option><option value="modified">Modified</option></select></label>
+      </div>
+      <p class="drag-hint">Tip: Drag a file or folder onto a folder or breadcrumb to move it.</p>
+      <nav id="breadcrumbs" class="breadcrumbs" aria-label="Folder path"></nav>
+      <p id="summary" class="summary" aria-live="polite"></p>
+      <div class="status-row" hidden><p id="status" class="status" role="status" aria-live="polite"></p><button id="undo-move" type="button" hidden>Undo move</button></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th scope="col" data-sort-column="name"><button type="button" data-sort="name">Name <span aria-hidden="true">↕</span></button></th>
+            <th scope="col" data-sort-column="size"><button type="button" data-sort="size">Size <span aria-hidden="true">↕</span></button></th>
+            <th scope="col" data-sort-column="modified"><button type="button" data-sort="modified">Modified <span aria-hidden="true">↕</span></button></th>
+            <th scope="col"><span class="visually-hidden">Actions</span></th>
+          </tr></thead>
+          <tbody id="entries"></tbody>
+        </table>
+      </div>
+      <footer class="controls">
+        <div class="pager"><button id="refresh" type="button">Refresh</button><button id="previous-page" type="button">Previous</button><span id="page-label"></span><button id="next-page" type="button">Next</button></div>
+        <details class="connection-settings">
+          <summary>Backend connection</summary>
+          <form id="api-form">
+            <label for="api-mode">Where should the browser look?</label>
+            <select id="api-mode" name="mode">
+              <option value="same-origin">This website (same origin)</option>
+              <option value="custom">A custom API server</option>
+            </select>
+            <div id="custom-api-row" class="api-url-row" hidden>
+              <label class="visually-hidden" for="api-origin">API server URL</label>
+              <input id="api-origin" name="origin" type="url" inputmode="url" autocomplete="url" placeholder="https://files.example.com">
+            </div>
+            <p class="help-text">Your choice is saved in this browser. A custom server must allow this page's origin in its CORS settings.</p>
+            <button type="submit">Connect</button>
+          </form>
+        </details>
+        <form id="upload-form" class="upload-form">
+          <label for="upload-file">Upload a file to this folder</label>
+          <input id="upload-file" type="file" required>
+          <button type="submit">Upload</button>
+        </form>
+      </footer>
+    </section>
+  </dialog>
+  <script type="module" src="./js/app.js?v=a11y-local-4"></script>
+</body>
+</html>
