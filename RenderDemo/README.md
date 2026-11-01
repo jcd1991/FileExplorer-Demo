@@ -2,6 +2,8 @@
 
 This folder holds the backend deployment files, separate from the application source. The Docker build compiles the app and copies only fictional files from `DemoFiles/`. It does not package the local `SampleFiles` directory or connect to production infrastructure.
 
+For repeatable deploy, verification, and rollback steps, see the [Render deployment runbook](DEPLOY_RUNBOOK.md).
+
 ## Set up the service
 
 1. Sign in to [Render](https://dashboard.render.com/) and create a **Blueprint** from the public repository URL `https://github.com/jcd1991/FileExplorer-Demo`.

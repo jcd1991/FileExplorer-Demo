@@ -103,7 +103,7 @@ The hosted demo uses a configurable 100 MiB upload cap, shared API rate limits, 
 
 ## Hosting
 
-The GitHub Actions workflow publishes only `TestProject/wwwroot/` to Pages. Render hosts the API through a demo-only reverse proxy configured under `RenderDemo/`; its container uses only fictional files from `RenderDemo/DemoFiles/` and does not include the local `SampleFiles` directory. See [Render setup](RenderDemo/README.md).
+The GitHub Actions workflow publishes only `TestProject/wwwroot/` to Pages. Render hosts the API through a demo-only reverse proxy configured under `RenderDemo/`; its container uses only fictional files from `RenderDemo/DemoFiles/` and does not include the local `SampleFiles` directory. See [Render setup](RenderDemo/README.md) and the [Render deployment runbook](RenderDemo/DEPLOY_RUNBOOK.md).
 
 For the Pages UI to call Render, the API must allow the Pages origin through `Cors__AllowedOrigins__0`. The site origin is `https://jcd1991.github.io`; the repository path is not part of the origin. CORS is a browser access rule, not authentication.
 
