@@ -10,17 +10,21 @@ const searchInput = document.querySelector("#search-input");
 const breadcrumbs = document.querySelector("#breadcrumbs");
 const summary = document.querySelector("#summary");
 const status = document.querySelector("#status");
+const statusRow = status.closest(".status-row");
 const undoButton = document.querySelector("#undo-move");
 const entries = document.querySelector("#entries");
 const pageLabel = document.querySelector("#page-label");
 const previousPage = document.querySelector("#previous-page");
 const nextPage = document.querySelector("#next-page");
+const sortSelect = document.querySelector("#sort-select");
 const uploadForm = document.querySelector("#upload-form");
 const uploadInput = document.querySelector("#upload-file");
 const apiForm = document.querySelector("#api-form");
 const apiMode = document.querySelector("#api-mode");
 const apiOriginInput = document.querySelector("#api-origin");
 const customApiRow = document.querySelector("#custom-api-row");
+const connectionSettings = document.querySelector(".connection-settings");
+const sortHeaders = [...document.querySelectorAll("th[data-sort-column]")];
 const renderApiOrigin = "https://file-explorer-demo-api.onrender.com";
 const moveDialog = document.querySelector("#move-dialog");
 const moveFolders = document.querySelector("#move-folders");
@@ -52,6 +56,10 @@ const initialBackendOrigin = getApiOrigin() || window.location.origin;
 let demoWritesEnabled = initialBackendOrigin !== renderApiOrigin;
 let configurationReady = false;
 let configurationError;
+
+if (["localhost", "127.0.0.1", "::1"].includes(window.location.hostname) && !new URLSearchParams(window.location.search).has("showConnection")) {
+  connectionSettings.hidden = true;
+}
 
 const configurationPromise = getConfig().then((config) => {
   if ((getApiOrigin() || window.location.origin) !== initialBackendOrigin) return;
@@ -146,6 +154,19 @@ entries.addEventListener("click", (event) => {
   writeState(state);
   loadEntries();
 });
+function closeActionMenus(except) {
+  entries.querySelectorAll("details.action-menu[open]").forEach(menu => {
+    if (menu === except) return;
+    menu.open = false;
+    const list = menu.querySelector(".action-list");
+    if (list) { list.style.left = ""; list.style.top = ""; }
+  });
+}
+document.addEventListener("toggle", event => {
+  const menu = event.target;
+  if (menu instanceof HTMLDetailsElement && menu.matches(".action-menu") && menu.open) closeActionMenus(menu);
+}, true);
+document.addEventListener("scroll", () => closeActionMenus(), true);
 entries.addEventListener("dragstart", event => {
   const row = event.target.closest("tr[data-path]");
   if (!row || mutationBusy || !demoWritesEnabled) { event.preventDefault(); return; }
@@ -199,6 +220,11 @@ document.querySelector("thead").addEventListener("click", (event) => {
   writeState(state);
   loadEntries();
 });
+sortSelect.addEventListener("change", () => {
+  state = { ...state, sort: sortSelect.value, direction: "asc", page: 1 };
+  writeState(state);
+  loadEntries();
+});
 previousPage.addEventListener("click", () => changePage(-1));
 nextPage.addEventListener("click", () => changePage(1));
 uploadForm.addEventListener("submit", async (event) => {
@@ -229,6 +255,8 @@ function openDialog() {
 
 function syncFromState() {
   searchInput.value = state.query;
+  sortSelect.value = state.sort;
+  syncSortAccessibility();
   renderBreadcrumbs(breadcrumbs, state.path);
   if (state.open) openDialogIfNeeded();
   else if (dialog.open) dialog.close();
@@ -283,6 +311,7 @@ async function loadEntries() {
     previousPage.disabled = result.page <= 1;
     nextPage.disabled = result.page >= result.totalPages;
     state = { ...state, page: result.page };
+    syncSortAccessibility();
     if (result.page !== readState().page) writeState(state, true);
     setStatus(result.entries.length === 0 ? "No matching entries." : "");
   }, () => currentVersion === requestVersion);
@@ -313,6 +342,11 @@ async function measure(operation, action, isCurrent = () => true) {
 function setStatus(message, error = false) {
   status.textContent = message;
   status.classList.toggle("error", error);
+  statusRow.hidden = !message && !undoMove;
+}
+
+function syncSortAccessibility() {
+  for (const header of sortHeaders) header.setAttribute("aria-sort", header.dataset.sortColumn === state.sort ? state.direction : "none");
 }
 
 function setBrowserLoading(visible, message = "Loading files…") {
