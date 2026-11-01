@@ -122,8 +122,9 @@ entries.addEventListener("click", (event) => {
   writeState(state);
   loadEntries();
 });
-function closeActionMenus() {
+function closeActionMenus(except) {
   entries.querySelectorAll("details.action-menu[open]").forEach(menu => {
+    if (menu === except) return;
     menu.open = false;
     const list = menu.querySelector(".action-list");
     if (list) {
@@ -132,6 +133,10 @@ function closeActionMenus() {
     }
   });
 }
+document.addEventListener("toggle", event => {
+  const menu = event.target;
+  if (menu instanceof HTMLDetailsElement && menu.matches(".action-menu") && menu.open) closeActionMenus(menu);
+}, true);
 document.addEventListener("scroll", closeActionMenus, true);
 entries.addEventListener("dragstart", event => {
   const row = event.target.closest("tr[data-path]");
