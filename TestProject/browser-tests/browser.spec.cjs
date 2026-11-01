@@ -7,6 +7,8 @@ test('deep links, reload, navigation, history, and dialog closure', async ({ pag
   await expect(page.locator('#browser-dialog')).toBeVisible();
   await expect(page.locator('.drag-hint')).toContainText('Drag a file or folder onto a folder or breadcrumb to move it');
   await expect(page.locator('#entries')).toContainText('report.txt');
+  await expect(page.locator('th[data-sort-column="size"]')).toHaveAttribute('aria-sort', 'descending');
+  await expect(page.locator('th[data-sort-column="name"]')).toHaveAttribute('aria-sort', 'none');
   await page.reload();
   await expect(page.locator('#search-input')).toHaveValue('report');
   await expect(page.locator('#entries')).toContainText('report.txt');

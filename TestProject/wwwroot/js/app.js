@@ -295,7 +295,7 @@ function setStatus(message, error = false) {
 }
 
 function syncSortAccessibility() {
-  for (const header of sortHeaders) header.setAttribute("aria-sort", header.dataset.sortColumn === state.sort ? state.direction : "none");
+  for (const header of sortHeaders) header.setAttribute("aria-sort", header.dataset.sortColumn === state.sort ? (state.direction === "asc" ? "ascending" : "descending") : "none");
 }
 
 function showError(error) {
