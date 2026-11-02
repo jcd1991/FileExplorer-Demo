@@ -50,6 +50,21 @@ test('deep links, reload, navigation, history, and dialog closure', async ({ pag
   expect(errors).toEqual([]);
 });
 
+test('generated-folder search exclusion defaults on and can be disabled in a deep link', async ({ page }) => {
+  await page.goto('/?open=1&q=generated-target');
+  const checkbox = page.locator('#skip-generated');
+  await expect(checkbox).toBeChecked();
+  await expect(page.locator('#entries')).not.toContainText('generated-target.txt');
+  await expect(page.locator('#summary')).toContainText('generated folders skipped');
+
+  await checkbox.uncheck();
+  await expect(page.locator('#entries')).toContainText('generated-target.txt');
+  expect(new URL(page.url()).searchParams.get('includeGenerated')).toBe('1');
+  await page.reload();
+  await expect(checkbox).not.toBeChecked();
+  await expect(page.locator('#entries')).toContainText('generated-target.txt');
+});
+
 test('failed navigation clears stale entries and disables uploads', async ({ page }) => {
   await page.goto('/?open=1&path=Alpha');
   await expect(page.locator('#entries')).toContainText('Nested');

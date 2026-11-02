@@ -18,6 +18,7 @@ Acceptance checks: browse and search return correct counts and file-byte totals 
 
 - Browse enumerates at most 100,000 immediate entries.
 - Search traverses iteratively, honors request cancellation, and stops at 100,000 inspected entries or five seconds. Truncated or inaccessible results are marked partial and include coded warnings.
+- Search skips common generated directories by default (`.git`, dependency caches, build outputs, test results, and Python caches/virtual environments). The compact “Skip generated folders” checkbox is on by default; turning it off includes those folders. The choice is reflected in the URL and applies only to search, not browsing or file operations. Generic directories such as `vendor`, `data`, and `tmp` remain searchable.
 - Page rendering remains bounded by the existing page-size limit. Snapshot paging may reuse a result, but a cold browse or search still scans the filesystem.
 - Metadata optimizations must preserve root containment, symbolic-link rejection, regular-file checks, supported-entry behavior, cancellation, and the summary contract.
 

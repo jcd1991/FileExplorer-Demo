@@ -9,8 +9,8 @@ public sealed partial class FileSystemService
     private readonly Dictionary<string, (string Key, DateTimeOffset Expires, long EstimatedBytes, FileListResponse Result)> _snapshots = new();
     private long _snapshotCacheBytes;
 
-    private static string SnapshotKey(string directory, string query, string? sort, string? direction) =>
-        System.Text.Json.JsonSerializer.Serialize(new[] { directory, query, sort, direction });
+    private static string SnapshotKey(string directory, string query, string? sort, string? direction, bool skipGenerated = false) =>
+        System.Text.Json.JsonSerializer.Serialize(new[] { directory, query, sort, direction, skipGenerated.ToString() });
 
     private void StoreSnapshot(string key, FileListResponse result)
     {

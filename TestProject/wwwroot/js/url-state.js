@@ -1,4 +1,4 @@
-const defaults = { open: false, path: "", query: "", sort: "name", direction: "asc", page: 1 };
+const defaults = { open: false, path: "", query: "", sort: "name", direction: "asc", page: 1, includeGenerated: false };
 
 export function readState(url = new URL(window.location.href)) {
   const pageValue = Number.parseInt(url.searchParams.get("page") ?? "1", 10);
@@ -11,12 +11,13 @@ export function readState(url = new URL(window.location.href)) {
     sort: ["name", "size", "modified"].includes(sortValue) ? sortValue : defaults.sort,
     direction: directionValue === "desc" ? "desc" : "asc",
     page: Number.isSafeInteger(pageValue) && pageValue > 0 ? pageValue : 1,
+    includeGenerated: url.searchParams.get("includeGenerated") === "1",
   };
 }
 
 export function writeState(state, replace = false) {
   const url = new URL(window.location.href);
-  const values = { open: state.open ? "1" : null, path: state.path, q: state.query, sort: state.sort, direction: state.direction, page: String(state.page) };
+  const values = { open: state.open ? "1" : null, path: state.path, q: state.query, sort: state.sort, direction: state.direction, page: String(state.page), includeGenerated: state.includeGenerated ? "1" : null };
   for (const [key, value] of Object.entries(values)) {
     if (value === null || value === "" || (key === "page" && value === "1")) url.searchParams.delete(key);
     else url.searchParams.set(key, value);

@@ -8,6 +8,8 @@ fs.mkdirSync(path.join(root, 'Alpha', 'Nested'), { recursive: true });
 fs.mkdirSync(path.join(root, 'Many'), { recursive: true });
 fs.mkdirSync(path.join(root, 'Perf'), { recursive: true });
 fs.writeFileSync(path.join(root, 'Alpha', 'Nested', 'report.txt'), 'report bytes');
+fs.mkdirSync(path.join(root, 'node_modules', 'nested'), { recursive: true });
+fs.writeFileSync(path.join(root, 'node_modules', 'nested', 'generated-target.txt'), 'generated fixture');
 for (let i = 0; i < 220; i++) fs.writeFileSync(path.join(root, 'Many', `item-${String(i).padStart(3, '0')}.txt`), 'fixture');
 for (let i = 0; i < 6000; i++) fs.writeFileSync(path.join(root, 'Perf', `perf-${String(i).padStart(4, '0')}.txt`), 'fixture');
 module.exports = defineConfig({

@@ -22,7 +22,7 @@ The default launch settings use the starter profile; browse to its local HTTP/HT
 FileBrowser__RootPath="/absolute/path/to/demo-files" dotnet run --project TestProject.csproj
 ```
 
-The configured root must already exist. Do not point it at `wwwroot`. The application rejects rooted/traversing request paths and skips symbolic links/reparse points. Only regular files and directories are supported. Named pipes, sockets, and devices are omitted with an `unsupported-entry-skipped` warning; downloads and mutations reject unsupported entries before reading or changing them. Search inspects at most 100,000 entries and five seconds, iteratively; inaccessible directories and truncated searches are reported. Browse caps enumeration at 100,000 entries. Page size defaults to 100 and is capped at 500.
+The configured root must already exist. Do not point it at `wwwroot`. The application rejects rooted/traversing request paths and skips symbolic links/reparse points. Only regular files and directories are supported. Named pipes, sockets, and devices are omitted with an `unsupported-entry-skipped` warning; downloads and mutations reject unsupported entries before reading or changing them. Search inspects at most 100,000 entries and five seconds, iteratively; inaccessible directories and truncated searches are reported. By default, search skips common generated directories such as `.git`, `node_modules`, build outputs, and language caches. The “Skip generated folders” checkbox is on by default; uncheck it to include them. This does not affect browse, downloads, or file changes. Browse caps enumeration at 100,000 entries. Page size defaults to 100 and is capped at 500.
 
 
 ## Requirements and implementation

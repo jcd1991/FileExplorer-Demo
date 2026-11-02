@@ -30,12 +30,12 @@ public sealed class FilesController(
     }
 
     [HttpGet("search")]
-    public IActionResult Search([FromQuery] string? path, [FromQuery] string? q = "", [FromQuery] string? sort = "name", [FromQuery] string? direction = "asc", [FromQuery] int page = 1, [FromQuery] int pageSize = 100, [FromQuery] string? snapshot = null)
+    public IActionResult Search([FromQuery] string? path, [FromQuery] string? q = "", [FromQuery] string? sort = "name", [FromQuery] string? direction = "asc", [FromQuery] int page = 1, [FromQuery] int pageSize = 100, [FromQuery] bool skipGenerated = true, [FromQuery] string? snapshot = null)
     {
         var query = q?.Trim() ?? string.Empty;
         return Run(query.Length == 0 ? "browse" : "search", () => query.Length == 0
             ? files.Browse(path, sort, direction, page, pageSize, HttpContext.RequestAborted, snapshot)
-            : files.Search(path, query, sort, direction, page, pageSize, HttpContext.RequestAborted, snapshot));
+            : files.Search(path, query, sort, direction, page, pageSize, HttpContext.RequestAborted, skipGenerated, snapshot));
     }
 
     [HttpPost("upload")]

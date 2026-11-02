@@ -63,6 +63,7 @@ export async function fetchEntries(state, signal, snapshot) {
   const params = new URLSearchParams({ path: state.path, sort: state.sort, direction: state.direction, page: String(state.page), pageSize: "100" });
   if (snapshot) params.set("snapshot", snapshot);
   if (searching) params.set("q", state.query.trim());
+  if (searching) params.set("skipGenerated", String(!state.includeGenerated));
   return request(`${apiUrl(`files/${searching ? "search" : "browse"}`)}?${params}`, { signal });
 }
 

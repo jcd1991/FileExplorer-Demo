@@ -1,5 +1,5 @@
 import { deployment } from "./deployment.js";
-import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=demo-ui-12";
+import { changeEntry, fetchEntries, getApiOrigin, getConfig, setApiOrigin, setMutationRequestListener, setMutationTokenProvider, uploadFile } from "./api.js?v=search-exclusions-1";
 import { formatBytes, renderBreadcrumbs, renderEntries, renderMoveFolders } from "./render.js";
 import { readState, writeState } from "./url-state.js";
 
@@ -8,6 +8,7 @@ const openButton = document.querySelector("#open-browser");
 const closeButton = document.querySelector("#close-browser");
 const searchForm = document.querySelector("#search-form");
 const searchInput = document.querySelector("#search-input");
+const skipGeneratedInput = document.querySelector("#skip-generated");
 const breadcrumbs = document.querySelector("#breadcrumbs");
 const summary = document.querySelector("#summary");
 const status = document.querySelector("#status");
@@ -146,6 +147,12 @@ searchForm.addEventListener("submit", (event) => {
   writeState(state, true);
   loadEntries();
 });
+skipGeneratedInput.addEventListener("change", () => {
+  state = { ...state, includeGenerated: !skipGeneratedInput.checked, page: 1 };
+  writeState(state, true);
+  snapshot = undefined;
+  loadEntries();
+});
 breadcrumbs.addEventListener("click", (event) => {
   const button = event.target.closest("button[data-path]");
   if (!button) return;
@@ -265,6 +272,7 @@ function openDialog() {
 
 function syncFromState() {
   searchInput.value = state.query;
+  skipGeneratedInput.checked = !state.includeGenerated;
   sortSelect.value = state.sort;
   syncSortAccessibility();
   renderBreadcrumbs(breadcrumbs, state.path);
@@ -283,7 +291,7 @@ async function loadEntries() {
   activeRequest?.abort();
   activeRequest = new AbortController();
   const currentVersion = ++requestVersion;
-  const key = JSON.stringify([state.path, state.query, state.sort, state.direction]);
+  const key = JSON.stringify([state.path, state.query, state.sort, state.direction, state.includeGenerated]);
   if (key !== snapshotKey) snapshot = undefined;
   snapshotKey = key;
   viewReady = false;
@@ -317,6 +325,7 @@ async function loadEntries() {
     const qualifier = result.partial ? "at least " : "";
     summary.textContent = `${qualifier}${result.summary.fileCount} files · ${qualifier}${result.summary.folderCount} folders · ${formatBytes(result.summary.totalFileBytes)} total file size`;
     if (result.warnings.length) summary.textContent += ` · ${result.warnings.map((warning) => `${warning.count} ${warning.code}`).join(", ")}`;
+    if (state.query.trim() && !state.includeGenerated) summary.textContent += " · generated folders skipped";
     pageLabel.textContent = `Page ${result.page} of ${result.totalPages}`;
     previousPage.disabled = result.page <= 1;
     nextPage.disabled = result.page >= result.totalPages;
@@ -591,7 +600,7 @@ function createTurnstileTokenProvider(siteKey) {
 function setReady(ready) {
   for (const control of uploadForm.querySelectorAll("input, button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
   for (const control of entries.querySelectorAll("button")) control.disabled = !ready || mutationBusy || !demoWritesEnabled;
-  for (const control of [searchInput, searchForm.querySelector("button[type=submit]"), previousPage, nextPage,
+  for (const control of [searchInput, skipGeneratedInput, searchForm.querySelector("button[type=submit]"), previousPage, nextPage,
     document.querySelector("#refresh"), apiMode, apiOriginInput, apiForm.querySelector("button[type=submit]"),
     ...document.querySelectorAll("thead button[data-sort]"), ...breadcrumbs.querySelectorAll("button[data-path]")]) control.disabled = mutationBusy;
   closeButton.disabled = mutationBusy;

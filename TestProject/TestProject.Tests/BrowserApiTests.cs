@@ -88,6 +88,22 @@ public sealed partial class BrowserApiTests : IDisposable
     }
 
     [Fact]
+    public async Task SearchSkipsGeneratedFoldersByDefaultAndCanIncludeThem()
+    {
+        var generated = Path.Combine(_root, "node_modules", "nested");
+        Directory.CreateDirectory(generated);
+        await File.WriteAllTextAsync(Path.Combine(generated, "generated-needle.txt"), "generated");
+
+        var defaultResponse = await _client.GetFromJsonAsync<FileListResponse>("/api/files/search?q=generated-needle");
+        Assert.NotNull(defaultResponse);
+        Assert.DoesNotContain(defaultResponse.Entries, entry => entry.Path.Contains("node_modules", StringComparison.OrdinalIgnoreCase));
+
+        var inclusiveResponse = await _client.GetFromJsonAsync<FileListResponse>("/api/files/search?q=generated-needle&skipGenerated=false");
+        Assert.NotNull(inclusiveResponse);
+        Assert.Contains(inclusiveResponse.Entries, entry => entry.Path == "node_modules/nested/generated-needle.txt");
+    }
+
+    [Fact]
     public async Task SearchReportsPartialResultsWhenSkippingSymbolicLinks()
     {
         if (!_hasSymbolicLink) return;

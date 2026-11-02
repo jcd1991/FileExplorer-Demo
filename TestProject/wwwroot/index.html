@@ -6,7 +6,7 @@
   <meta name="description" content="Browse and transfer files from a configured server directory.">
   <title>File Browser</title>
   <link rel="icon" href="./favicon.svg?v=1" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css?v=deployment-1">
+  <link rel="stylesheet" href="./styles.css?v=search-exclusions-1">
 </head>
 <body>
   <main class="launch">
@@ -64,6 +64,7 @@
         <form id="search-form" role="search">
           <label class="search-label" for="search-input">Search names in this folder and below</label>
           <div class="search-row"><input id="search-input" name="q" type="search" autocomplete="off" placeholder="Search files and folders"><button type="submit">Search</button></div>
+          <label class="search-exclusions"><input id="skip-generated" type="checkbox" checked> Skip generated folders</label>
         </form>
         <label class="sort-control" for="sort-select">Sort by<select id="sort-select"><option value="name">Name</option><option value="size">Size</option><option value="modified">Modified</option></select></label>
       </div>
@@ -127,6 +128,6 @@
       document.querySelectorAll(".free-demo-limits").forEach((notice) => { notice.hidden = false; });
     }
   </script>
-  <script type="module" src="./js/app.js?v=deployment-1"></script>
+  <script type="module" src="./js/app.js?v=search-exclusions-1"></script>
 </body>
 </html>

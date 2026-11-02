@@ -19,6 +19,12 @@ public sealed partial class FileSystemService : IDisposable
     private const string TemporaryPrefix = ".filebrowser-upload-";
     private const long MultipartOverheadBytes = 1_048_576;
     private const long BytesPerMiB = 1_048_576;
+    private static readonly HashSet<string> GeneratedDirectoryNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".git", ".hg", ".svn", "node_modules", "bower_components", ".pnpm-store",
+        ".cache", "bin", "obj", "dist", "build", "target", ".next", ".nuxt", ".turbo", "coverage",
+        "TestResults", "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".venv", "venv"
+    };
     // Conservatively reject case aliases on platforms commonly using insensitive filesystems.
     private static readonly StringComparison PathComparison = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS()
         ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -80,18 +86,18 @@ public sealed partial class FileSystemService : IDisposable
         return CreateResponse(entries, warningCounts, partial, sort, direction, page, pageSize, key);
     }
 
-    public FileListResponse Search(string? relativePath, string query, string? sort, string? direction, int page, int pageSize, CancellationToken cancellationToken, string? snapshot = null)
+    public FileListResponse Search(string? relativePath, string query, string? sort, string? direction, int page, int pageSize, CancellationToken cancellationToken, bool skipGenerated = true, string? snapshot = null)
     {
         var start = Stopwatch.GetTimestamp();
         var directory = ResolvePath(relativePath, requireDirectory: true);
-        var key = SnapshotKey(directory, query, sort, direction);
+        var key = SnapshotKey(directory, query, sort, direction, skipGenerated);
         if (snapshot is not null) return ReadSnapshot(snapshot, key, page, pageSize);
         var state = new SearchState(directory);
         while (state.Pending.Count > 0)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (SearchLimitReached(state, start)) break;
-            VisitSearchDirectory(state.Pending.Dequeue(), query, state, start, cancellationToken);
+            VisitSearchDirectory(state.Pending.Dequeue(), query, state, start, cancellationToken, skipGenerated);
             if (state.LimitReached) break;
         }
 
@@ -104,7 +110,7 @@ public sealed partial class FileSystemService : IDisposable
         return CreateResponse(state.Entries, state.Warnings, state.Partial, sort, direction, page, pageSize, key);
     }
 
-    private void VisitSearchDirectory(string current, string query, SearchState state, long started, CancellationToken cancellationToken)
+    private void VisitSearchDirectory(string current, string query, SearchState state, long started, CancellationToken cancellationToken, bool skipGenerated)
     {
         try
         {
@@ -115,6 +121,7 @@ public sealed partial class FileSystemService : IDisposable
                 if (SearchLimitReached(state, started)) break;
                 state.Inspected++;
                 if (!TryCreateEntry(child, state.Warnings, out var entry, out var isDirectory)) continue;
+                if (isDirectory && skipGenerated && GeneratedDirectoryNames.Contains(entry.Name)) continue;
                 if (entry.Name.Contains(query, StringComparison.OrdinalIgnoreCase)) state.Entries.Add(entry);
                 if (!isDirectory) continue;
                 if (state.Pending.Count >= MaxPendingDirectories)
