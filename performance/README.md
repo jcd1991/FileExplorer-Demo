@@ -117,6 +117,16 @@ This creates an isolated 5,000-file catalog, warms each of five VUs twice, then 
 
 Combined per-run reports now include overall HTTP/check outcomes and workflow completion rates, when available, as well as upload-only counters. Inspect the workflow metrics and k6 exit status: zero upload failures alone does not prove that a browse/search/mutation workflow passed. Older reports remain in their original schema; the October 31 aggregate index preserves their complete raw k6 metrics.
 
+## Generated-folder exclusion benchmark
+
+From the repository root, after a Release build and with k6 installed:
+
+```sh
+node performance/scripts/run-search-exclusion-benchmark.mjs
+```
+
+This compares the checkbox unchecked (`skipGenerated=false`) with its default checked state (`skipGenerated=true`). It creates an isolated 11,000-file tree with deep ordinary and generated folders, measures three repetitions at five and twenty VUs, checks complete expected result counts, and records client and server scan percentiles. It writes resumable state/log/PID files and removes only its fixture after every run passes. See [the exclusion benchmark results](SEARCH_EXCLUSION_K6_2026-11-02.md) for the paired measurements and limits.
+
 ## p95 buffer and large-download experiments
 
 From `TestProject/` after a Release build, run the warmed 100-sample matrix and transfer checks:

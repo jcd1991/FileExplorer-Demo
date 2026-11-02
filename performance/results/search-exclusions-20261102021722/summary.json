@@ -1,0 +1,251 @@
+{
+  "batch": "search-exclusions-20261102021722",
+  "host": {
+    "cpuCount": 8,
+    "memoryGiB": 16,
+    "k6": "v2.3.0"
+  },
+  "fixture": {
+    "ordinaryFiles": 1000,
+    "generatedFiles": 10000,
+    "normalFolders": 10,
+    "generatedTrees": [
+      "node_modules",
+      "bin",
+      "obj",
+      ".git"
+    ]
+  },
+  "summary": {
+    "off": {
+      "5vus": {
+        "medianRunClientP50Ms": 122.4855,
+        "medianRunClientP95Ms": 150.52085,
+        "medianRunServerScanP95Ms": 140.8982,
+        "inspectedEntries": 11335,
+        "matchCount": 11000,
+        "totalMeasuredSamples": 570
+      },
+      "20vus": {
+        "medianRunClientP50Ms": 454.63649999999996,
+        "medianRunClientP95Ms": 679.1683999999997,
+        "medianRunServerScanP95Ms": 405.3869,
+        "inspectedEntries": 11335,
+        "matchCount": 11000,
+        "totalMeasuredSamples": 480
+      }
+    },
+    "on": {
+      "5vus": {
+        "medianRunClientP50Ms": 10.872499999999999,
+        "medianRunClientP95Ms": 12.65185,
+        "medianRunServerScanP95Ms": 11.5284,
+        "inspectedEntries": 1035,
+        "matchCount": 1000,
+        "totalMeasuredSamples": 570
+      },
+      "20vus": {
+        "medianRunClientP50Ms": 39.2355,
+        "medianRunClientP95Ms": 61.9169,
+        "medianRunServerScanP95Ms": 44.0087,
+        "inspectedEntries": 1035,
+        "matchCount": 1000,
+        "totalMeasuredSamples": 480
+      }
+    }
+  },
+  "runs": [
+    {
+      "runId": "5vus-rep1-off",
+      "mode": "off",
+      "vus": 5,
+      "iterationsPerVu": 40,
+      "measuredSamples": 190,
+      "clientP50Ms": 139.8965,
+      "clientP95Ms": 195.78065,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 165.1616,
+      "inspectedEntries": 11335,
+      "matchCount": 11000,
+      "partialScans": 0
+    },
+    {
+      "runId": "5vus-rep1-on",
+      "mode": "on",
+      "vus": 5,
+      "iterationsPerVu": 40,
+      "measuredSamples": 190,
+      "clientP50Ms": 10.872499999999999,
+      "clientP95Ms": 12.65185,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 11.5284,
+      "inspectedEntries": 1035,
+      "matchCount": 1000,
+      "partialScans": 0
+    },
+    {
+      "runId": "5vus-rep2-on",
+      "mode": "on",
+      "vus": 5,
+      "iterationsPerVu": 40,
+      "measuredSamples": 190,
+      "clientP50Ms": 10.956,
+      "clientP95Ms": 12.788299999999998,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 11.8354,
+      "inspectedEntries": 1035,
+      "matchCount": 1000,
+      "partialScans": 0
+    },
+    {
+      "runId": "5vus-rep2-off",
+      "mode": "off",
+      "vus": 5,
+      "iterationsPerVu": 40,
+      "measuredSamples": 190,
+      "clientP50Ms": 122.4855,
+      "clientP95Ms": 150.52085,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 140.8982,
+      "inspectedEntries": 11335,
+      "matchCount": 11000,
+      "partialScans": 0
+    },
+    {
+      "runId": "5vus-rep3-off",
+      "mode": "off",
+      "vus": 5,
+      "iterationsPerVu": 40,
+      "measuredSamples": 190,
+      "clientP50Ms": 119.631,
+      "clientP95Ms": 142.6288,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 135.2238,
+      "inspectedEntries": 11335,
+      "matchCount": 11000,
+      "partialScans": 0
+    },
+    {
+      "runId": "5vus-rep3-on",
+      "mode": "on",
+      "vus": 5,
+      "iterationsPerVu": 40,
+      "measuredSamples": 190,
+      "clientP50Ms": 10.599,
+      "clientP95Ms": 11.83075,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 11.4714,
+      "inspectedEntries": 1035,
+      "matchCount": 1000,
+      "partialScans": 0
+    },
+    {
+      "runId": "20vus-rep1-off",
+      "mode": "off",
+      "vus": 20,
+      "iterationsPerVu": 10,
+      "measuredSamples": 160,
+      "clientP50Ms": 475.2175,
+      "clientP95Ms": 679.1683999999997,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 375.5822,
+      "inspectedEntries": 11335,
+      "matchCount": 11000,
+      "partialScans": 0
+    },
+    {
+      "runId": "20vus-rep1-on",
+      "mode": "on",
+      "vus": 20,
+      "iterationsPerVu": 10,
+      "measuredSamples": 160,
+      "clientP50Ms": 39.2355,
+      "clientP95Ms": 70.9904,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 45.1063,
+      "inspectedEntries": 1035,
+      "matchCount": 1000,
+      "partialScans": 0
+    },
+    {
+      "runId": "20vus-rep2-on",
+      "mode": "on",
+      "vus": 20,
+      "iterationsPerVu": 10,
+      "measuredSamples": 160,
+      "clientP50Ms": 40.1195,
+      "clientP95Ms": 56.60364999999997,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 44.0087,
+      "inspectedEntries": 1035,
+      "matchCount": 1000,
+      "partialScans": 0
+    },
+    {
+      "runId": "20vus-rep2-off",
+      "mode": "off",
+      "vus": 20,
+      "iterationsPerVu": 10,
+      "measuredSamples": 160,
+      "clientP50Ms": 454.63649999999996,
+      "clientP95Ms": 811.9347999999999,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 458.9313,
+      "inspectedEntries": 11335,
+      "matchCount": 11000,
+      "partialScans": 0
+    },
+    {
+      "runId": "20vus-rep3-off",
+      "mode": "off",
+      "vus": 20,
+      "iterationsPerVu": 10,
+      "measuredSamples": 160,
+      "clientP50Ms": 450.262,
+      "clientP95Ms": 643.91225,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 405.3869,
+      "inspectedEntries": 11335,
+      "matchCount": 11000,
+      "partialScans": 0
+    },
+    {
+      "runId": "20vus-rep3-on",
+      "mode": "on",
+      "vus": 20,
+      "iterationsPerVu": 10,
+      "measuredSamples": 160,
+      "clientP50Ms": 35.385999999999996,
+      "clientP95Ms": 61.9169,
+      "httpFailureRate": 0,
+      "checkFailureRate": 0,
+      "samples": 200,
+      "p95Ms": 42.4847,
+      "inspectedEntries": 1035,
+      "matchCount": 1000,
+      "partialScans": 0
+    }
+  ]
+}
