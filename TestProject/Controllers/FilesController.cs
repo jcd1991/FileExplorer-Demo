@@ -35,7 +35,7 @@ public sealed class FilesController(
         var query = q?.Trim() ?? string.Empty;
         return Run(query.Length == 0 ? "browse" : "search", () => query.Length == 0
             ? files.Browse(path, sort, direction, page, pageSize, HttpContext.RequestAborted, snapshot)
-            : files.Search(path, query, sort, direction, page, pageSize, HttpContext.RequestAborted, skipGenerated, snapshot));
+            : files.Search(path, query, sort, direction, page, pageSize, skipGenerated, snapshot, HttpContext.RequestAborted));
     }
 
     [HttpPost("upload")]

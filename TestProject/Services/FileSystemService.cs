@@ -86,7 +86,7 @@ public sealed partial class FileSystemService : IDisposable
         return CreateResponse(entries, warningCounts, partial, sort, direction, page, pageSize, key);
     }
 
-    public FileListResponse Search(string? relativePath, string query, string? sort, string? direction, int page, int pageSize, CancellationToken cancellationToken, bool skipGenerated = true, string? snapshot = null)
+    public FileListResponse Search(string? relativePath, string query, string? sort, string? direction, int page, int pageSize, bool skipGenerated, string? snapshot, CancellationToken cancellationToken)
     {
         var start = Stopwatch.GetTimestamp();
         var directory = ResolvePath(relativePath, requireDirectory: true);
@@ -97,7 +97,7 @@ public sealed partial class FileSystemService : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (SearchLimitReached(state, start)) break;
-            VisitSearchDirectory(state.Pending.Dequeue(), query, state, start, cancellationToken, skipGenerated);
+            VisitSearchDirectory(state.Pending.Dequeue(), query, state, start, skipGenerated, cancellationToken);
             if (state.LimitReached) break;
         }
 
@@ -110,7 +110,7 @@ public sealed partial class FileSystemService : IDisposable
         return CreateResponse(state.Entries, state.Warnings, state.Partial, sort, direction, page, pageSize, key);
     }
 
-    private void VisitSearchDirectory(string current, string query, SearchState state, long started, CancellationToken cancellationToken, bool skipGenerated)
+    private void VisitSearchDirectory(string current, string query, SearchState state, long started, bool skipGenerated, CancellationToken cancellationToken)
     {
         try
         {

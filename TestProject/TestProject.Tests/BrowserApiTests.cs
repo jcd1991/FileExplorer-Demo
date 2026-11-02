@@ -119,7 +119,7 @@ public sealed partial class BrowserApiTests : IDisposable
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
         using var service = new FileSystemService(_root);
-        Assert.Throws<OperationCanceledException>(() => service.Search("", "needle", "name", "asc", 1, 100, cancellation.Token));
+        Assert.Throws<OperationCanceledException>(() => service.Search("", "needle", "name", "asc", 1, 100, true, null, cancellation.Token));
     }
 
     [Theory]
